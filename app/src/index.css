@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 180 73% 10%;
+    --foreground: 0 0% 100%;
+    --card: 180 60% 14%;
+    --card-foreground: 0 0% 100%;
+    --popover: 180 60% 14%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 180 60% 27%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 180 50% 18%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 180 30% 20%;
+    --muted-foreground: 0 0% 75%;
+    --accent: 50 42% 51%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 100% / 0.15;
+    --input: 180 30% 20%;
+    --ring: 50 42% 51%;
+    --radius: 0px;
+    --sidebar-background: 180 73% 10%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 180 60% 27%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 180 50% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100% / 0.15;
+    --sidebar-ring: 50 42% 51%;
+
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    font-family: var(--font-body);
+    background-color: #062d2e;
+    color: #ffffff;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer components {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-body {
+    font-family: var(--font-body);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  .text-gold {
+    color: #b8a94e;
+  }
+  .bg-brand-teal-900 {
+    background-color: #062d2e;
+  }
+  .bg-brand-teal-800 {
+    background-color: #0b3d3f;
+  }
+  .bg-brand-teal-700 {
+    background-color: #0f4d4f;
+  }
+  .bg-brand-teal-600 {
+    background-color: #1a6b6e;
+  }
+  .bg-brand-gold-500 {
+    background-color: #b8a94e;
+  }
+
+  .infinite-text-wrapper {
+    position: relative;
+    white-space: nowrap;
+    display: flex;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 500;
+    font-size: 6vw;
+    color: #0b3d3f;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    overflow: hidden;
+  }
+
+  .infinite-text-wrapper > div {
+    position: relative;
+    flex-shrink: 0;
+    padding-right: 1vw;
+    animation: inf-text-scroll 30s linear infinite;
+  }
+
+  @keyframes inf-text-scroll {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(-100%, 0, 0);
+    }
+  }
+}
