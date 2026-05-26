@@ -1,42 +1,59 @@
 import { useEffect, useRef } from 'react';
+import { useFeatures } from '@/hooks/useFeatures';
+import { SkeletonSection } from '@/components/SkeletonSection';
+import { SectionErrorFallback } from '@/components/SectionErrorFallback';
 
-const SERVICES = [
+const FALLBACK_SERVICES = [
   {
-    num: '01',
     title: 'SUBLIMATION PRINTING',
-    desc: 'Jersey, Pants, Lanyard, Flag, Apron, Table Cloth, Towel, Pennant — Full-color, all-over dye sublimation for vibrant, lasting prints.',
+    description: 'Jersey, Pants, Lanyard, Flag, Apron, Table Cloth, Towel, Pennant — Full-color, all-over dye sublimation for vibrant, lasting prints.',
   },
   {
-    num: '02',
     title: 'T-SHIRT PRINTING',
-    desc: 'Silk Screen Printing, Heatpress, and Virus Print — Multiple techniques for every fabric type and order size.',
+    description: 'Silk Screen Printing, Heatpress, and Virus Print — Multiple techniques for every fabric type and order size.',
   },
   {
-    num: '03',
     title: 'PREMIUM GIFTS',
-    desc: 'Mug, Medal, Bags, Umbrella, Hand Fan, Plaque — Curated corporate gifts that leave a lasting impression.',
+    description: 'Mug, Medal, Bags, Umbrella, Hand Fan, Plaque — Curated corporate gifts that leave a lasting impression.',
   },
   {
-    num: '04',
     title: 'EMBROIDERY',
-    desc: 'T-Shirt, Corporate Shirt, Jacket, Cap, Patches — Precision stitching for a premium, textured finish.',
+    description: 'T-Shirt, Corporate Shirt, Jacket, Cap, Patches — Precision stitching for a premium, textured finish.',
   },
   {
-    num: '05',
     title: 'LARGE FORMAT PRINTING',
-    desc: 'Banner, Bunting, Backdrop, Roll-up Bunting, Sticker, Digital Print — Eye-catching displays for any event.',
+    description: 'Banner, Bunting, Backdrop, Roll-up Bunting, Sticker, Digital Print — Eye-catching displays for any event.',
   },
   {
-    num: '06',
     title: 'CUSTOM PRODUCTS',
-    desc: 'Corporate Shirt, Keychain, Luggage Tag, Wristband, ID Card — Fully customizable products for your brand.',
+    description: 'Corporate Shirt, Keychain, Luggage Tag, Wristband, ID Card — Fully customizable products for your brand.',
   },
+];
+
+const SHOWCASE = [
+  { img: '/images/prod-sublimation.jpg', label: 'Sublimation Jerseys' },
+  { img: '/images/prod-screen.jpg', label: 'Screen Printed Tees' },
+  { img: '/images/prod-embroidery.jpg', label: 'Embroidery Work' },
 ];
 
 export default function Services() {
   const sectionRef = useRef<HTMLElement>(null);
+  const { data, isPending, error, refetch } = useFeatures();
+
+  const services = data && data.length > 0
+    ? [...data].sort((a, b) => a.sort_order - b.sort_order).map((s, i) => ({
+        num: String(i + 1).padStart(2, '0'),
+        title: s.title,
+        desc: s.description ?? '',
+      }))
+    : FALLBACK_SERVICES.map((s, i) => ({
+        num: String(i + 1).padStart(2, '0'),
+        title: s.title,
+        desc: s.description,
+      }));
 
   useEffect(() => {
+    if (isPending) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -57,7 +74,7 @@ export default function Services() {
     }
 
     return () => observer.disconnect();
-  }, []);
+  }, [isPending, services.length]);
 
   return (
     <section
@@ -67,7 +84,6 @@ export default function Services() {
       style={{ background: '#062d2e', paddingTop: 120, paddingBottom: 120 }}
     >
       <div className="max-w-[1440px] mx-auto px-6 lg:px-12">
-        {/* Header */}
         <div className="mb-16">
           <p className="font-mono text-xs tracking-[2px] text-brand-gold-500 uppercase mb-4">
             WHAT WE DO
@@ -80,33 +96,33 @@ export default function Services() {
           </h2>
         </div>
 
-        {/* Service Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {SERVICES.map((service) => (
-            <div
-              key={service.num}
-              className="service-card opacity-0 translate-y-5 transition-all duration-700 group p-8 border border-white/15 hover:bg-brand-teal-800 hover:border-brand-gold-500/30 cursor-default"
-            >
-              <span className="font-display font-semibold text-brand-gold-500 text-3xl mb-4 block">
-                {service.num}
-              </span>
-              <h3 className="font-display font-medium text-white text-xl mb-3 tracking-tight">
-                {service.title}
-              </h3>
-              <p className="font-body text-sm leading-relaxed text-white/60 group-hover:text-white/80 transition-colors">
-                {service.desc}
-              </p>
-            </div>
-          ))}
-        </div>
+        {isPending ? (
+          <SkeletonSection variant="cards" />
+        ) : error && (!data || data.length === 0) ? (
+          <SectionErrorFallback retry={() => refetch()} message="Tidak bisa memuat layanan." />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {services.map((service) => (
+              <div
+                key={service.num}
+                className="service-card opacity-0 translate-y-5 transition-all duration-700 group p-8 border border-white/15 hover:bg-brand-teal-800 hover:border-brand-gold-500/30 cursor-default"
+              >
+                <span className="font-display font-semibold text-brand-gold-500 text-3xl mb-4 block">
+                  {service.num}
+                </span>
+                <h3 className="font-display font-medium text-white text-xl mb-3 tracking-tight">
+                  {service.title}
+                </h3>
+                <p className="font-body text-sm leading-relaxed text-white/60 group-hover:text-white/80 transition-colors">
+                  {service.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
-        {/* Product Showcase */}
         <div className="mt-20 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {[
-            { img: '/images/prod-sublimation.jpg', label: 'Sublimation Jerseys' },
-            { img: '/images/prod-screen.jpg', label: 'Screen Printed Tees' },
-            { img: '/images/prod-embroidery.jpg', label: 'Embroidery Work' },
-          ].map((item) => (
+          {SHOWCASE.map((item) => (
             <div key={item.label} className="group relative overflow-hidden aspect-video">
               <img
                 src={item.img}

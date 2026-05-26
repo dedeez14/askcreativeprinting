@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
+import { useSettings } from '@/hooks/useSettings';
 
 const NAV_LINKS = [
   { label: 'HOME', href: '#hero' },
@@ -12,6 +13,9 @@ const NAV_LINKS = [
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { data: settings } = useSettings();
+  const logoUrl = settings?.logo_light_url || settings?.logo_url || null;
+  const siteName = settings?.site_name || 'ASK';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -41,12 +45,18 @@ export default function Header() {
       <div className="max-w-[1440px] mx-auto px-6 lg:px-12 h-full flex items-center justify-between">
         {/* Logo */}
         <button onClick={() => scrollTo('#hero')} className="flex items-center gap-2">
-          <span className="font-display font-bold text-2xl tracking-tight text-white">
-            ASK
-          </span>
-          <span className="font-display font-medium text-sm tracking-[0.2em] text-brand-gold-500 uppercase">
-            Creative
-          </span>
+          {logoUrl ? (
+            <img src={logoUrl} alt={siteName} className="h-8 w-auto object-contain" />
+          ) : (
+            <>
+              <span className="font-display font-bold text-2xl tracking-tight text-white">
+                ASK
+              </span>
+              <span className="font-display font-medium text-sm tracking-[0.2em] text-brand-gold-500 uppercase">
+                Creative
+              </span>
+            </>
+          )}
         </button>
 
         {/* Desktop Nav */}

@@ -1,5 +1,20 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, Type, Minus, Plus, Send, Shirt, MessageSquare } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'sonner';
+import { useQuoteRequest } from '@/hooks/useQuoteRequest';
+
+const quoteSchema = z.object({
+  name: z.string().min(2, 'Nama minimal 2 karakter'),
+  email: z.string().email('Email tidak valid'),
+  phone: z.string().min(6, 'Nomor telepon minimal 6 karakter'),
+  notes: z.string().optional(),
+  website: z.string().optional(),
+});
+
+type QuoteFormValues = z.infer<typeof quoteSchema>;
 
 // Product templates with SVG paths
 const PRODUCTS = [
@@ -84,9 +99,21 @@ export default function DesignStudio() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showQuoteForm, setShowQuoteForm] = useState(false);
-  const [quoteSubmitted, setQuoteSubmitted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const openTime = useRef(Math.floor(Date.now() / 1000));
+  const quoteMutation = useQuoteRequest();
+
+  const {
+    register: registerQuote,
+    handleSubmit: handleQuoteSubmitForm,
+    reset: resetQuoteForm,
+    setError: setQuoteError,
+    formState: { errors: quoteErrors, isSubmitting: isQuoteSubmitting },
+  } = useForm<QuoteFormValues>({
+    resolver: zodResolver(quoteSchema),
+    defaultValues: { website: '' },
+  });
 
   const totalQuantity = Object.values(selectedSizes).reduce((a, b) => a + b, 0);
   const baseTotal = selectedProduct.basePrice * totalQuantity;
@@ -145,13 +172,49 @@ export default function DesignStudio() {
     }));
   };
 
-  const handleQuoteSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setQuoteSubmitted(true);
-    setTimeout(() => {
-      setQuoteSubmitted(false);
-      setShowQuoteForm(false);
-    }, 3000);
+  const onQuoteSubmit = async (values: QuoteFormValues) => {
+    try {
+      await quoteMutation.mutateAsync({
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        product_snapshot: {
+          name: selectedProduct.name,
+          color: selectedColor,
+          sizes: selectedSizes,
+          qty: totalQuantity,
+          price_estimate: estimatedPrice,
+          design_image_url: userImage || undefined,
+        },
+        notes: values.notes || undefined,
+        website: values.website ?? '',
+        _t: openTime.current,
+      });
+      toast.success('Permintaan quote terkirim, tim sales akan menghubungi Anda.');
+    } catch (err: unknown) {
+      const e = err as { status?: number; code?: string; message?: string; fields?: Record<string, string[]> };
+      if (e?.status === 422 && e.fields) {
+        Object.entries(e.fields).forEach(([field, msgs]) => {
+          if (field in quoteSchema.shape) {
+            setQuoteError(field as keyof QuoteFormValues, { type: 'server', message: msgs[0] });
+          }
+        });
+        toast.error('Mohon periksa kembali isian Anda.');
+      } else if (e?.status === 429) {
+        toast.error('Terlalu banyak permintaan, coba lagi sebentar.');
+      } else {
+        toast.error('Gagal mengirim, coba lagi.');
+      }
+    }
+  };
+
+  const closeQuoteModal = () => {
+    setShowQuoteForm(false);
+    if (quoteMutation.isSuccess) {
+      quoteMutation.reset();
+      resetQuoteForm();
+      openTime.current = Math.floor(Date.now() / 1000);
+    }
   };
 
   // Get logo area for current product
@@ -516,13 +579,13 @@ export default function DesignStudio() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-brand-teal-800 w-full max-w-md p-8 border border-white/15 relative">
             <button
-              onClick={() => setShowQuoteForm(false)}
+              onClick={closeQuoteModal}
               className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
             >
               <Minus size={20} className="rotate-45" />
             </button>
 
-            {quoteSubmitted ? (
+            {quoteMutation.isSuccess ? (
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-brand-gold-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <MessageSquare size={28} className="text-brand-gold-500" />
@@ -531,6 +594,12 @@ export default function DesignStudio() {
                 <p className="font-body text-sm text-white/60">
                   Our sales team will contact you shortly.
                 </p>
+                <button
+                  onClick={closeQuoteModal}
+                  className="mt-6 font-mono text-xs tracking-[1.5px] text-brand-gold-500 hover:text-brand-gold-400 underline"
+                >
+                  CLOSE
+                </button>
               </div>
             ) : (
               <>
@@ -539,17 +608,27 @@ export default function DesignStudio() {
                   {selectedProduct.name} &bull; {totalQuantity} pcs &bull; Est. RM{estimatedPrice}
                 </p>
 
-                <form onSubmit={handleQuoteSubmit} className="space-y-4">
+                <form onSubmit={handleQuoteSubmitForm(onQuoteSubmit)} className="space-y-4" noValidate>
+                  <input
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    style={{ position: 'absolute', left: '-9999px', width: 1, height: 1 }}
+                    {...registerQuote('website')}
+                    aria-hidden="true"
+                  />
+
                   <div>
                     <label className="font-mono text-xs tracking-[1px] text-white/50 uppercase block mb-2">
                       Full Name
                     </label>
                     <input
                       type="text"
-                      required
+                      {...registerQuote('name')}
                       className="w-full bg-transparent border border-white/20 py-3 px-4 font-body text-sm text-white placeholder:text-white/30 focus:border-brand-gold-500 focus:outline-none transition-colors"
                       placeholder="Your name"
                     />
+                    {quoteErrors.name && <p className="text-red-400 text-xs mt-1 font-mono">{quoteErrors.name.message}</p>}
                   </div>
                   <div>
                     <label className="font-mono text-xs tracking-[1px] text-white/50 uppercase block mb-2">
@@ -557,10 +636,11 @@ export default function DesignStudio() {
                     </label>
                     <input
                       type="email"
-                      required
+                      {...registerQuote('email')}
                       className="w-full bg-transparent border border-white/20 py-3 px-4 font-body text-sm text-white placeholder:text-white/30 focus:border-brand-gold-500 focus:outline-none transition-colors"
                       placeholder="you@company.com"
                     />
+                    {quoteErrors.email && <p className="text-red-400 text-xs mt-1 font-mono">{quoteErrors.email.message}</p>}
                   </div>
                   <div>
                     <label className="font-mono text-xs tracking-[1px] text-white/50 uppercase block mb-2">
@@ -568,10 +648,11 @@ export default function DesignStudio() {
                     </label>
                     <input
                       type="tel"
-                      required
+                      {...registerQuote('phone')}
                       className="w-full bg-transparent border border-white/20 py-3 px-4 font-body text-sm text-white placeholder:text-white/30 focus:border-brand-gold-500 focus:outline-none transition-colors"
                       placeholder="+60 12-345 6789"
                     />
+                    {quoteErrors.phone && <p className="text-red-400 text-xs mt-1 font-mono">{quoteErrors.phone.message}</p>}
                   </div>
                   <div>
                     <label className="font-mono text-xs tracking-[1px] text-white/50 uppercase block mb-2">
@@ -579,16 +660,18 @@ export default function DesignStudio() {
                     </label>
                     <textarea
                       rows={3}
+                      {...registerQuote('notes')}
                       className="w-full bg-transparent border border-white/20 py-3 px-4 font-body text-sm text-white placeholder:text-white/30 focus:border-brand-gold-500 focus:outline-none transition-colors resize-none"
                       placeholder="Any special requirements..."
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-brand-gold-500 hover:bg-brand-gold-400 text-[#062d2e] font-mono text-xs tracking-[1.5px] py-4 rounded-pill transition-colors flex items-center justify-center gap-2"
+                    disabled={isQuoteSubmitting || quoteMutation.isPending || totalQuantity === 0}
+                    className="w-full bg-brand-gold-500 hover:bg-brand-gold-400 disabled:opacity-60 disabled:cursor-not-allowed text-[#062d2e] font-mono text-xs tracking-[1.5px] py-4 rounded-pill transition-colors flex items-center justify-center gap-2"
                   >
                     <Send size={14} />
-                    SEND QUOTE REQUEST
+                    {isQuoteSubmitting || quoteMutation.isPending ? 'SENDING...' : 'SEND QUOTE REQUEST'}
                   </button>
                 </form>
               </>
