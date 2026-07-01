@@ -1,41 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 180 73% 10%;
-    --foreground: 0 0% 100%;
-    --card: 180 60% 14%;
-    --card-foreground: 0 0% 100%;
-    --popover: 180 60% 14%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 180 60% 27%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 180 50% 18%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 180 30% 20%;
-    --muted-foreground: 0 0% 75%;
-    --accent: 50 42% 51%;
-    --accent-foreground: 0 0% 10%;
+    --background: 0 0% 100%;
+    --foreground: 150 40% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 150 40% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 40% 7%;
+    --primary: 150 40% 16%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 150 20% 95%;
+    --secondary-foreground: 150 40% 16%;
+    --muted: 150 20% 95%;
+    --muted-foreground: 150 15% 40%;
+    --accent: 173 55% 39%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 100% / 0.15;
-    --input: 180 30% 20%;
-    --ring: 50 42% 51%;
-    --radius: 0px;
-    --sidebar-background: 180 73% 10%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 180 60% 27%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 180 50% 18%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 100% / 0.15;
-    --sidebar-ring: 50 42% 51%;
-
-    --font-display: 'Space Grotesk', sans-serif;
-    --font-body: 'Inter', sans-serif;
-    --font-mono: 'IBM Plex Mono', monospace;
+    --border: 150 20% 85%;
+    --input: 150 20% 85%;
+    --ring: 150 40% 16%;
+    --radius: 0.5rem;
+    --sidebar-background: 150 40% 7%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 72 100% 50%;
+    --sidebar-primary-foreground: 150 40% 7%;
+    --sidebar-accent: 150 20% 15%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 150 20% 15%;
+    --sidebar-ring: 72 100% 50%;
   }
 }
 
@@ -43,75 +42,77 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    font-family: var(--font-body);
-    background-color: #062d2e;
-    color: #ffffff;
-    overflow-x: hidden;
+    @apply bg-white text-foreground font-body antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-display);
+    @apply font-display;
   }
 }
 
-@layer components {
+@layer utilities {
   .font-display {
-    font-family: var(--font-display);
+    font-family: 'Clash Display', sans-serif;
   }
   .font-body {
-    font-family: var(--font-body);
+    font-family: 'DM Sans', sans-serif;
   }
-  .font-mono {
-    font-family: var(--font-mono);
-  }
+}
 
-  .text-gold {
-    color: #b8a94e;
-  }
-  .bg-brand-teal-900 {
-    background-color: #062d2e;
-  }
-  .bg-brand-teal-800 {
-    background-color: #0b3d3f;
-  }
-  .bg-brand-teal-700 {
-    background-color: #0f4d4f;
-  }
-  .bg-brand-teal-600 {
-    background-color: #1a6b6e;
-  }
-  .bg-brand-gold-500 {
-    background-color: #b8a94e;
-  }
+/* Marquee animations */
+@keyframes marquee-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 
-  .infinite-text-wrapper {
-    position: relative;
-    white-space: nowrap;
-    display: flex;
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 500;
-    font-size: 6vw;
-    color: #0b3d3f;
-    letter-spacing: -0.02em;
-    line-height: 1;
-    overflow: hidden;
-  }
+@keyframes marquee-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
 
-  .infinite-text-wrapper > div {
-    position: relative;
-    flex-shrink: 0;
-    padding-right: 1vw;
-    animation: inf-text-scroll 30s linear infinite;
-  }
+.animate-marquee-left {
+  animation: marquee-left 25s linear infinite;
+}
 
-  @keyframes inf-text-scroll {
-    0% {
-      transform: translate3d(0, 0, 0);
-    }
-    100% {
-      transform: translate3d(-100%, 0, 0);
-    }
-  }
+.animate-marquee-right {
+  animation: marquee-right 30s linear infinite;
+}
+
+/* WhatsApp pulse */
+@keyframes pulse-subtle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F0F4F1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1B4332;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0d1f16;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(215, 255, 0, 0.3);
+  color: #0d1f16;
 }

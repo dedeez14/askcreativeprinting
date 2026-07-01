@@ -1,26 +1,59 @@
-import { useLenis } from './hooks/useLenis';
-import Header from './sections/Header';
-import Hero from './sections/Hero';
-import About from './sections/About';
-import Services from './sections/Services';
-import DesignStudio from './sections/DesignStudio';
-import Clients from './sections/Clients';
-import Contact from './sections/Contact';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import Layout from "./components/Layout";
+import Home from "./pages/Home";
+import About from "./pages/About";
+import Services from "./pages/Services";
+import ServiceDetail from "./pages/ServiceDetail";
+import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
+import OnlineDesign from "./pages/OnlineDesign";
+import Quotation from "./pages/Quotation";
+import Portfolio from "./pages/Portfolio";
+import Clients from "./pages/Clients";
+import FAQ from "./pages/FAQ";
+import Blog from "./pages/Blog";
+import BlogDetail from "./pages/BlogDetail";
+import Contact from "./pages/Contact";
+import NotFound from "./pages/NotFound";
+import { trackPageView } from "./lib/analytics";
 
-export default function App() {
-  useLenis();
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    // Fire a SPA page-view for GA4 + Meta Pixel (no-op if not configured).
+    trackPageView(pathname);
+  }, [pathname]);
+  return null;
+}
 
+function App() {
   return (
-    <div className="relative">
-      <Header />
-      <main>
-        <Hero />
-        <About />
-        <Services />
-        <DesignStudio />
-        <Clients />
-        <Contact />
-      </main>
-    </div>
+    <Router>
+      <ScrollToTop />
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/about-us" element={<About />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/services/:slug" element={<ServiceDetail />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/:slug" element={<ProductDetail />} />
+          <Route path="/online-design" element={<OnlineDesign />} />
+          <Route path="/quotation" element={<Quotation />} />
+          <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogDetail />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Layout>
+    </Router>
   );
 }
+
+export default App;
