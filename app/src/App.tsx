@@ -17,15 +17,26 @@ import Blog from "./pages/Blog";
 import BlogDetail from "./pages/BlogDetail";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
-import { trackPageView } from "./lib/analytics";
+import { trackPageView, initAnalytics } from "./lib/analytics";
+import { useSettings } from "./hooks/useSettings";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Fire a SPA page-view for GA4 + Meta Pixel (no-op if not configured).
+    // Fire a SPA page-view for GA4 + Meta Pixel (no-op until a tag is loaded).
     trackPageView(pathname);
   }, [pathname]);
+  return null;
+}
+
+// Loads analytics tags using the admin-entered IDs from Landing → Settings
+// (settings.analytics.*). Idempotent per tag; env vars act as a dev fallback.
+function AnalyticsBootstrap() {
+  const { data: settings } = useSettings();
+  useEffect(() => {
+    initAnalytics(settings?.analytics?.ga_measurement_id, settings?.analytics?.meta_pixel_id);
+  }, [settings]);
   return null;
 }
 
@@ -33,6 +44,7 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
+      <AnalyticsBootstrap />
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />

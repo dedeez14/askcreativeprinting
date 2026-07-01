@@ -1,15 +1,18 @@
 /**
- * Env-driven analytics: Google Analytics 4 + Meta (Facebook) Pixel.
+ * Google Analytics 4 + Meta (Facebook) Pixel — IDs are ADMIN-EDITABLE.
  *
- * IDs come from build-time env (no hard-coded / fake IDs):
- *   VITE_GA_MEASUREMENT_ID   e.g. G-XXXXXXXXXX
- *   VITE_META_PIXEL_ID       e.g. 1234567890
- * If an ID is unset, that tag is simply skipped — nothing loads, no console noise.
- * This keeps the site clean until ASK Creative provides its real tracking IDs.
+ * The ASK Creative admin enters the IDs in the ERP Landing → Settings form
+ * ("Analytics & Tracking"); they arrive via GET /api/landing/v1/settings as
+ * settings.analytics.{ga_measurement_id, meta_pixel_id}. The app calls
+ * initAnalytics(gaId, pixelId) once settings load. Env vars
+ * (VITE_GA_MEASUREMENT_ID / VITE_META_PIXEL_ID) act only as an optional
+ * fallback for local/dev. If an ID is empty, that tag never loads — no fake
+ * IDs, no console noise. Each tag is loaded at most once, whenever its ID
+ * first becomes available (so calling this before + after settings load is safe).
  */
 
-const GA_ID = (import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined)?.trim() || undefined;
-const PIXEL_ID = (import.meta.env.VITE_META_PIXEL_ID as string | undefined)?.trim() || undefined;
+const ENV_GA = (import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined)?.trim() || undefined;
+const ENV_PIXEL = (import.meta.env.VITE_META_PIXEL_ID as string | undefined)?.trim() || undefined;
 
 declare global {
   interface Window {
@@ -21,27 +24,37 @@ declare global {
   }
 }
 
-let initialised = false;
+let gaLoaded = false;
+let pixelLoaded = false;
 
-/** Loads GA4 + Meta Pixel tags once, only for IDs that are configured. */
-export function initAnalytics(): void {
-  if (initialised || typeof window === 'undefined') return;
-  initialised = true;
+/**
+ * Load GA4 + Meta Pixel tags for whichever IDs are provided (admin settings
+ * first, env fallback). Idempotent per tag — safe to call repeatedly.
+ */
+export function initAnalytics(gaId?: string | null, pixelId?: string | null): void {
+  if (typeof window === 'undefined') return;
 
-  if (GA_ID) {
+  const ga = (gaId ?? ENV_GA ?? undefined) || undefined;
+  const pixel = (pixelId ?? ENV_PIXEL ?? undefined) || undefined;
+
+  if (ga && !gaLoaded) {
+    gaLoaded = true;
     const s = document.createElement('script');
     s.async = true;
-    s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+    s.src = `https://www.googletagmanager.com/gtag/js?id=${ga}`;
     document.head.appendChild(s);
     window.dataLayer = window.dataLayer || [];
     // eslint-disable-next-line prefer-rest-params
     window.gtag = function gtag() { window.dataLayer!.push(arguments); };
     window.gtag('js', new Date());
-    // SPA: page_view is sent manually on each route change (below).
-    window.gtag('config', GA_ID, { send_page_view: false });
+    // SPA: page_view is sent manually on each route change.
+    window.gtag('config', ga, { send_page_view: false });
+    // Count the current page now (init typically happens just after first paint).
+    trackPageView(window.location.pathname);
   }
 
-  if (PIXEL_ID) {
+  if (pixel && !pixelLoaded) {
+    pixelLoaded = true;
     /* eslint-disable */
     // @ts-ignore — official Meta Pixel bootstrap snippet
     (function (f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
@@ -53,18 +66,18 @@ export function initAnalytics(): void {
       s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
     })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
     /* eslint-enable */
-    window.fbq('init', PIXEL_ID);
+    window.fbq('init', pixel);
     window.fbq('track', 'PageView');
   }
 }
 
-/** Fire a SPA page-view (call on every route change). */
+/** Fire a SPA page-view (call on every route change). No-op until a tag is loaded. */
 export function trackPageView(path: string): void {
   if (typeof window === 'undefined') return;
-  if (GA_ID && window.gtag) {
+  if (window.gtag) {
     window.gtag('event', 'page_view', { page_path: path, page_location: window.location.href, page_title: document.title });
   }
-  if (PIXEL_ID && window.fbq) {
+  if (window.fbq) {
     window.fbq('track', 'PageView');
   }
 }
@@ -80,12 +93,10 @@ const PIXEL_STD: Record<string, string> = {
 /** Track a named event (conversions like quote_submitted, contact_submitted, …). */
 export function trackEvent(name: string, params: Record<string, unknown> = {}): void {
   if (typeof window === 'undefined') return;
-  if (GA_ID && window.gtag) window.gtag('event', name, params);
-  if (PIXEL_ID && window.fbq) {
+  if (window.gtag) window.gtag('event', name, params);
+  if (window.fbq) {
     const std = PIXEL_STD[name];
     if (std) window.fbq('track', std, params);
     else window.fbq('trackCustom', name, params);
   }
 }
-
-export const analyticsEnabled = Boolean(GA_ID || PIXEL_ID);

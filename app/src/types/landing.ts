@@ -9,6 +9,10 @@ export interface LandingSettings {
   contact_email: string | null;
   contact_phone: string | null;
   contact_address: string | null;
+  analytics?: {
+    ga_measurement_id: string | null;
+    meta_pixel_id: string | null;
+  };
   company_lat: number | null;
   company_lng: number | null;
   social: {
