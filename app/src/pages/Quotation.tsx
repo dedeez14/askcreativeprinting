@@ -4,6 +4,7 @@ import { Send, Check, MessageCircle, Upload } from "lucide-react";
 import { toast } from "sonner";
 import SEOHead from "../components/SEOHead";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
+import { useFormTracking } from "../hooks/useFormTracking";
 import { useSettings } from "../hooks/useSettings";
 
 const productTypes = [
@@ -29,6 +30,7 @@ export default function Quotation() {
   const [submitted, setSubmitted] = useState(false);
   const formOpenedAt = useRef(Math.floor(Date.now() / 1000));
   const mutation = useQuoteRequest();
+  const track = useFormTracking("quotation");
   const { data: settings } = useSettings();
   const salesTeam = (settings?.sales_team && settings.sales_team.length > 0) ? settings.sales_team : FALLBACK_SALES_TEAM;
 
@@ -59,6 +61,7 @@ export default function Quotation() {
     };
     mutation.mutate(payload, {
       onSuccess: () => {
+        track.markSubmitted();
         setSubmitted(true);
         toast.success("Quotation request submitted!");
       },
@@ -96,7 +99,7 @@ export default function Quotation() {
         <div className="max-w-[720px] mx-auto px-5 md:px-10">
           {!submitted ? (
             <div className="bg-white border border-forest-900/15 rounded-lg p-8 md:p-12">
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} onChange={track.start} className="space-y-5">
                 {/* honeypot */}
                 <input
                   type="text"

@@ -5,6 +5,7 @@ import {
 import { toast } from "sonner";
 import SEOHead from "../components/SEOHead";
 import { useContactSubmission } from "../hooks/useContactSubmission";
+import { useFormTracking } from "../hooks/useFormTracking";
 import { useSettings } from "../hooks/useSettings";
 
 const FALLBACK_SALES_TEAM = [
@@ -34,6 +35,7 @@ export default function Contact() {
   const [submitted, setSubmitted] = useState(false);
   const formOpenedAt = useRef(Math.floor(Date.now() / 1000));
   const mutation = useContactSubmission();
+  const track = useFormTracking("contact");
   const { data: settings } = useSettings();
   const salesTeam = (settings?.sales_team && settings.sales_team.length > 0) ? settings.sales_team : FALLBACK_SALES_TEAM;
   const officePhone = settings?.contact_phone || "088 205 423";
@@ -56,6 +58,7 @@ export default function Contact() {
     };
     mutation.mutate(payload, {
       onSuccess: () => {
+        track.markSubmitted();
         setSubmitted(true);
         toast.success("Pesan terkirim. Tim sales akan menghubungi Anda.");
       },
@@ -96,7 +99,7 @@ export default function Contact() {
             <div className="lg:col-span-3">
               {!submitted ? (
                 <div className="bg-white border border-forest-900/15 rounded-lg p-8">
-                  <form onSubmit={handleSubmit} className="space-y-5">
+                  <form onSubmit={handleSubmit} onChange={track.start} className="space-y-5">
                     {/* honeypot — bots fill this; real users never see it */}
                     <input
                       type="text"

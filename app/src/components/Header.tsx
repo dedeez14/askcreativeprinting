@@ -21,6 +21,7 @@ const navLinks = [
     ],
   },
   { label: "Products", href: "/products" },
+  { label: "Track Order", href: "/track" },
   { label: "Portfolio", href: "/portfolio" },
   { label: "Clients", href: "/clients" },
   { label: "FAQ", href: "/faq" },

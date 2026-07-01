@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Shirt, Trophy, HardHat, StickyNote, Wine, Award, FileText,
@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import SEOHead from "../components/SEOHead";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
+import { useFormTracking } from "../hooks/useFormTracking";
 import { useDesignStudio } from "../hooks/useDesignStudio";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -36,6 +37,12 @@ export default function OnlineDesign() {
   });
   const formOpenedAt = useRef(Math.floor(Date.now() / 1000));
   const mutation = useQuoteRequest();
+  const track = useFormTracking("online_design");
+
+  // Funnel start = first real engagement (a product is chosen).
+  useEffect(() => {
+    if (selectedProduct) track.start();
+  }, [selectedProduct, track]);
 
   // Initialize defaults the first time studio data lands
   useMemo(() => {
@@ -77,7 +84,7 @@ export default function OnlineDesign() {
       website: "",
       _t: formOpenedAt.current,
     }, {
-      onSuccess: () => { setSubmitted(true); toast.success("Design submitted! Sales team will follow up."); },
+      onSuccess: () => { track.markSubmitted(); setSubmitted(true); toast.success("Design submitted! Sales team will follow up."); },
       onError: (err: any) => {
         if (err?.status === 429) toast.error("Terlalu banyak permintaan, coba lagi sebentar.");
         else if (err?.status === 422) toast.error(err?.message ?? "Periksa kembali isian Anda.");
