@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import SEOHead from "../components/SEOHead";
 import { useBlogs } from "../hooks/useBlogs";
+import { formatDate } from "../lib/format";
 
 interface BlogPost {
   image: string;
@@ -29,7 +30,7 @@ export default function Blog() {
         category: b.category || "General",
         title: b.title,
         excerpt: b.excerpt || "",
-        date: b.published_at ? new Date(b.published_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "",
+        date: formatDate(b.published_at),
         slug: b.slug,
       }));
     }

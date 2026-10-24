@@ -1,21 +1,90 @@
-import { useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Send, Check, MessageCircle, Upload } from "lucide-react";
+import { Send, Check, MessageCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import SEOHead from "../components/SEOHead";
+import FileUploadBox from "../components/FileUploadBox";
+import { useEnquiry } from "../hooks/useEnquiry";
+import { enquiryToQuoteRequest } from "../lib/legacyQuote";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
 import { useFormTracking } from "../hooks/useFormTracking";
 import { useSettings } from "../hooks/useSettings";
+import { toFileRef, type UploadedFileWithRole } from "../hooks/useFileUpload";
+import { ENQUIRY_V2 } from "../lib/features";
+import { attributionFields } from "../lib/attribution";
+import { ADULT_SIZES, KIDS_SIZES, cleanSizes, sizeLabel, sumSizes, type SizeMatrix } from "../lib/sizes";
+import { isoDate } from "../lib/format";
+import type {
+  DeliveryMethod,
+  EnquiryNamesetEntry,
+  EnquiryPayload,
+  EnquiryPriority,
+  ErpJobType,
+} from "../types/landing";
 
-const productTypes = [
-  "Sublimation Jersey",
-  "Custom Apparel",
-  "T-Shirt",
-  "Embroidery",
-  "Digital Printing",
-  "Banner/Bunting",
-  "Premium Gifts",
-  "Others",
+/**
+ * 06 B4 "Website Quotation Form — Required Fields": customer, product (category, type and the
+ * ERP job type), design, quantity + size matrix, nameset, files, deadline and delivery — all of
+ * it in one submission, plus the campaign source (B15) and the anti-spam pair the ERP checks
+ * (honeypot + minimum fill time).
+ */
+
+/* 06 §3 "Add Strong Product Categories" — the three groups and their product types. */
+const PRODUCT_GROUPS: Array<{ category: string; types: string[]; jobType: ErpJobType }> = [
+  {
+    category: "Custom Apparel",
+    jobType: "SUBLIMATION",
+    types: [
+      "Sublimation Jersey", "Football Jersey", "Running Jersey / Singlet", "Basketball Jersey",
+      "Baseball Jersey", "Corporate Shirt", "Polo Shirt", "Hoodie", "Varsity Jacket",
+      "Windbreaker", "Trackset", "Apron", "Pants / Shorts",
+    ],
+  },
+  {
+    category: "Printing Services",
+    jobType: "DTF_HEATPRESS",
+    types: [
+      "T-Shirt Printing", "Silkscreen Printing", "Heat Press", "Embroidery",
+      "Large Format Printing", "Banner / Bunting / Backdrop", "Sticker / Digital Print",
+    ],
+  },
+  {
+    category: "Corporate & Premium Gifts",
+    jobType: "OTHER",
+    types: [
+      "Mug", "Medal", "Plaque", "Umbrella", "Bag", "Lanyard", "Keychain",
+      "Luggage Tag", "Wristband", "ID Card",
+    ],
+  },
+];
+
+/* App\Support\JobTypes::CATALOGUE — the only values the ERP accepts. */
+const JOB_TYPES: Array<{ value: ErpJobType; label: string }> = [
+  { value: "SUBLIMATION", label: "Sublimation" },
+  { value: "BANNER", label: "Banner" },
+  { value: "DTF_HEATPRESS", label: "DTF / Heat Press" },
+  { value: "DESIGN_ONLY", label: "Design Only" },
+  { value: "OTHER", label: "Other / not sure" },
+];
+
+const PRIORITIES: Array<{ value: EnquiryPriority; label: string }> = [
+  { value: "LOW", label: "Low — no fixed date" },
+  { value: "NORMAL", label: "Normal" },
+  { value: "HIGH", label: "High" },
+  { value: "URGENT", label: "Urgent" },
+];
+
+const DELIVERY_METHODS: Array<{ value: DeliveryMethod; label: string }> = [
+  { value: "pickup", label: "Self pickup at our showroom" },
+  { value: "delivery", label: "Delivery by ASK Creative" },
+  { value: "courier", label: "Courier" },
+];
+
+const NAME_NUMBER_OPTIONS = [
+  { value: "", label: "Not required" },
+  { value: "NAMES", label: "Names only" },
+  { value: "NUMBERS", label: "Numbers only" },
+  { value: "NAMES_AND_NUMBERS", label: "Names and numbers" },
 ];
 
 const FALLBACK_SALES_TEAM = [
@@ -26,51 +95,197 @@ const FALLBACK_SALES_TEAM = [
   { name: "Ms. Fara", phone: "60102174750" },
 ];
 
+const FIELD =
+  "w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500 [color-scheme:light]";
+const LABEL = "block text-xs font-body font-medium uppercase tracking-[0.08em] text-forest-900/60 mb-2";
+const SECTION = "font-display text-lg text-forest-900 uppercase mb-5 pt-2";
+
+const emptyNameset = (): EnquiryNamesetEntry => ({ name: "", number: "", size: "", remark: "" });
+
 export default function Quotation() {
   const [submitted, setSubmitted] = useState(false);
-  const formOpenedAt = useRef(Math.floor(Date.now() / 1000));
-  const mutation = useQuoteRequest();
+  const [enquiryNo, setEnquiryNo] = useState<string>("");
+  // The time-captcha the ERP checks (a submit under 3 s after the form opened is refused).
+  // Stamped on mount, not during render, so the value is stable for the whole visit.
+  const formOpenedAt = useRef(0);
+  useEffect(() => {
+    formOpenedAt.current = Math.floor(Date.now() / 1000);
+  }, []);
   const track = useFormTracking("quotation");
   const { data: settings } = useSettings();
-  const salesTeam = (settings?.sales_team && settings.sales_team.length > 0) ? settings.sales_team : FALLBACK_SALES_TEAM;
+  const salesTeam = settings?.sales_team?.length ? settings.sales_team : FALLBACK_SALES_TEAM;
+
+  const enquiry = useEnquiry();
+  const quoteRequest = useQuoteRequest();
+  const pending = enquiry.isPending || quoteRequest.isPending;
+
+  // Customer
+  const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+
+  // Product
+  const [category, setCategory] = useState(PRODUCT_GROUPS[0].category);
+  const [productType, setProductType] = useState("");
+  const [jobType, setJobType] = useState<ErpJobType>(PRODUCT_GROUPS[0].jobType);
+
+  // Design
+  const [design, setDesign] = useState({
+    design_concept: "",
+    main_color: "",
+    secondary_color: "",
+    collar_type: "",
+    fabric_type: "",
+    sleeve_type: "",
+    name_number_required: "",
+    design_notes: "",
+  });
+
+  // Quantity
+  const [sizes, setSizes] = useState<SizeMatrix>({});
+  const [totalQty, setTotalQty] = useState("");
+
+  // Nameset
+  const [namesetOpen, setNamesetOpen] = useState(false);
+  const [nameset, setNameset] = useState<EnquiryNamesetEntry[]>([emptyNameset()]);
+
+  // Deadline + delivery
+  const [eventDate, setEventDate] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [priority, setPriority] = useState<EnquiryPriority>("NORMAL");
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | "">("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+
+  // Files + remarks
+  const [files, setFiles] = useState<UploadedFileWithRole[]>([]);
+  const [notes, setNotes] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+
+  const today = isoDate(new Date());
+  const group = useMemo(
+    () => PRODUCT_GROUPS.find((g) => g.category === category) ?? PRODUCT_GROUPS[0],
+    [category],
+  );
+  const matrixTotal = useMemo(() => sumSizes(sizes), [sizes]);
+
+  const onCategoryChange = (value: string) => {
+    setCategory(value);
+    setProductType("");
+    const next = PRODUCT_GROUPS.find((g) => g.category === value);
+    if (next) setJobType(next.jobType);
+  };
+
+  const setSizeQty = (size: string, value: string) => {
+    const n = Math.trunc(Number(value));
+    setSizes((prev) => {
+      const next = { ...prev };
+      if (!value || !Number.isFinite(n) || n <= 0) delete next[size];
+      else next[size] = n;
+      return next;
+    });
+  };
+
+  const setNamesetField = (index: number, field: keyof EnquiryNamesetEntry, value: string) =>
+    setNameset((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+
+  const buildPayload = (): EnquiryPayload | null => {
+    if (!name.trim() || !email.trim() || !phone.trim()) {
+      toast.error("Name, email and phone are required.");
+      return null;
+    }
+    if (!productType) {
+      toast.error("Please choose the product you need.");
+      return null;
+    }
+
+    const matrix = cleanSizes(sizes);
+    const typedTotal = Math.trunc(Number(totalQty));
+    const total = matrixTotal > 0 ? matrixTotal : Number.isFinite(typedTotal) && typedTotal > 0 ? typedTotal : 0;
+    if (total <= 0) {
+      toast.error("Please enter the quantity, or fill in the size breakdown.");
+      return null;
+    }
+
+    const designDetails = Object.fromEntries(
+      Object.entries(design).filter(([, v]) => v.trim() !== ""),
+    ) as EnquiryPayload["design_details"];
+
+    const namesetRows = namesetOpen
+      ? nameset
+          .filter((row) => (row.name ?? "").trim() !== "")
+          .map((row) => ({
+            name: (row.name ?? "").trim(),
+            number: (row.number ?? "").trim() || undefined,
+            size: (row.size ?? "").trim() || undefined,
+            remark: (row.remark ?? "").trim() || undefined,
+          }))
+      : [];
+
+    return {
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      company_name: company.trim() || undefined,
+
+      product_category: category,
+      product_type: productType,
+      product_name_snapshot: productType,
+      erp_job_type: jobType,
+
+      design_details: designDetails && Object.keys(designDetails).length > 0 ? designDetails : undefined,
+
+      total_qty: total,
+      size_breakdown: Object.keys(matrix).length > 0 ? matrix : undefined,
+      nameset_data: namesetRows.length > 0 ? namesetRows : undefined,
+
+      event_date: eventDate || undefined,
+      delivery_date: deliveryDate || undefined,
+      priority,
+      delivery_method: deliveryMethod || undefined,
+      delivery_address: deliveryAddress.trim() || undefined,
+
+      uploaded_files: files.length > 0 ? files.map(toFileRef) : undefined,
+
+      ...attributionFields(),
+
+      website: honeypot,
+      _t: formOpenedAt.current,
+      notes: notes.trim() || undefined,
+    };
+  };
+
+  const onError = (err: unknown) => {
+    const status = (err as { status?: number })?.status;
+    const message = (err as { message?: string })?.message;
+    if (status === 429) toast.error("Too many requests. Please try again in a moment.");
+    else if (status === 422) toast.error(message ?? "Please check your details and try again.");
+    else toast.error("Something went wrong on our side. Please try again.");
+  };
+
+  const onDone = (no?: string) => {
+    track.markSubmitted();
+    setEnquiryNo(no ?? "");
+    setSubmitted(true);
+    toast.success(no ? `Quotation request submitted — reference ${no}` : "Quotation request submitted!");
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const productType = String(fd.get("product_type") || "").trim();
-    const qty = Number(fd.get("quantity") || 0);
-    const sizeBreakdown = String(fd.get("size_breakdown") || "").trim();
-    const deadline = String(fd.get("deadline") || "").trim();
-    const company = String(fd.get("company") || "").trim();
+    const payload = buildPayload();
+    if (!payload) return;
 
-    const payload = {
-      name: String(fd.get("name") || "").trim(),
-      email: String(fd.get("email") || "").trim(),
-      phone: String(fd.get("phone") || "").trim(),
-      product_snapshot: {
-        source: "quotation_form",
-        product_type: productType,
-        company,
-        quantity: qty,
-        deadline: deadline || null,
-        size_breakdown: sizeBreakdown || null,
-      },
-      notes: String(fd.get("notes") || "").trim(),
-      website: String(fd.get("website") || ""),
-      _t: formOpenedAt.current,
-    };
-    mutation.mutate(payload, {
-      onSuccess: () => {
-        track.markSubmitted();
-        setSubmitted(true);
-        toast.success("Quotation request submitted!");
-      },
-      onError: (err: any) => {
-        if (err?.status === 429) toast.error("Terlalu banyak permintaan, coba lagi sebentar.");
-        else if (err?.status === 422) toast.error(err?.message ?? "Periksa kembali isian Anda.");
-        else toast.error("Server bermasalah, coba lagi.");
-      },
-    });
+    // The complete B4 enquiry goes to POST /enquiries once the ERP serves Stage 4
+    // (VITE_ENQUIRY_V2=1). Until then the same data is carried by the legacy quote request,
+    // so nothing a visitor types is lost.
+    if (ENQUIRY_V2) {
+      enquiry.mutate(payload, { onSuccess: (res) => onDone(res?.enquiry_no), onError });
+    } else {
+      quoteRequest.mutate(enquiryToQuoteRequest(payload), {
+        onSuccess: (res) => onDone((res as { enquiry_no?: string })?.enquiry_no),
+        onError,
+      });
+    }
   };
 
   return (
@@ -89,112 +304,311 @@ export default function Quotation() {
             Get Your Free Quotation
           </h1>
           <p className="text-white/50 text-lg font-body max-w-[600px] mx-auto">
-            Fill in the details below and our sales team will prepare a quotation for you.
+            Fill in the details below and our sales team will prepare a quotation for you. Prices are
+            quoted in RM and confirmed by our sales team.
           </p>
         </div>
       </section>
 
       {/* Quotation Form */}
       <section className="bg-white py-16 md:py-24">
-        <div className="max-w-[720px] mx-auto px-5 md:px-10">
+        <div className="max-w-[820px] mx-auto px-5 md:px-10">
           {!submitted ? (
-            <div className="bg-white border border-forest-900/15 rounded-lg p-8 md:p-12">
-              <form onSubmit={handleSubmit} onChange={track.start} className="space-y-5">
+            <div className="bg-white border border-forest-900/15 rounded-lg p-6 md:p-10">
+              <form onSubmit={handleSubmit} onChange={track.start} className="space-y-6">
                 {/* honeypot */}
                 <input
                   type="text"
                   name="website"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
                   tabIndex={-1}
                   autoComplete="off"
                   style={{ position: "absolute", left: "-9999px" }}
                   aria-hidden="true"
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Name *"
-                    required
-                    className="w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500"
-                  />
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="Email *"
-                    required
-                    className="w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone *"
-                    required
-                    className="w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500"
-                  />
-                  <input
-                    type="text"
-                    name="company"
-                    placeholder="Company (optional)"
-                    className="w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-                <select
-                  name="product_type"
-                  required
-                  className="w-full px-4 py-3 rounded-md border border-forest-900/15 text-forest-900 text-sm font-body focus:outline-none focus:border-teal-500 bg-white"
-                >
-                  <option value="">Select Product Type *</option>
-                  {productTypes.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <input
-                    type="number"
-                    name="quantity"
-                    placeholder="Quantity *"
-                    required
-                    min={1}
-                    step={1}
-                    className="w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500"
-                  />
-                  <input
-                    type="date"
-                    name="deadline"
-                    placeholder="Deadline"
-                    className="w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-                <input
-                  type="text"
-                  name="size_breakdown"
-                  placeholder="Size breakdown (optional) e.g. S=5, M=10, L=10"
-                  className="w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500"
-                />
 
-                {/* File Upload (UI only — upload uses /uploads endpoint separately) */}
-                <div className="border-2 border-dashed border-forest-900/15 hover:border-[#d7ff00] rounded-lg p-6 text-center transition-colors cursor-pointer">
-                  <Upload className="w-6 h-6 text-forest-900/30 mx-auto mb-2" />
-                  <p className="text-forest-900/60 text-sm font-body">
-                    Upload your design or reference image (optional) — coming soon
-                  </p>
+                {/* ── Your details ── */}
+                <div>
+                  <h2 className={SECTION}>Your details</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className={LABEL} htmlFor="q-name">Full name *</label>
+                      <input id="q-name" className={FIELD} value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Ahmad bin Ali" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-company">Company / organisation</label>
+                      <input id="q-company" className={FIELD} value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-phone">Phone / WhatsApp *</label>
+                      <input id="q-phone" type="tel" className={FIELD} value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="e.g. 010 217 4774" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-email">Email *</label>
+                      <input id="q-email" type="email" className={FIELD} value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
+                    </div>
+                  </div>
                 </div>
 
-                <textarea
-                  rows={4}
-                  name="notes"
-                  placeholder="Additional notes or requirements..."
-                  className="w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500 resize-none"
-                />
+                {/* ── What you need ── */}
+                <div>
+                  <h2 className={SECTION}>What you need</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className={LABEL} htmlFor="q-category">Product category *</label>
+                      <select id="q-category" className={FIELD} value={category} onChange={(e) => onCategoryChange(e.target.value)} required>
+                        {PRODUCT_GROUPS.map((g) => (
+                          <option key={g.category} value={g.category}>{g.category}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-product">Product type *</label>
+                      <select id="q-product" className={FIELD} value={productType} onChange={(e) => setProductType(e.target.value)} required>
+                        <option value="">Select a product</option>
+                        {group.types.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className={LABEL} htmlFor="q-jobtype">Printing / job type *</label>
+                      <select id="q-jobtype" className={FIELD} value={jobType} onChange={(e) => setJobType(e.target.value as ErpJobType)} required>
+                        {JOB_TYPES.map((j) => (
+                          <option key={j.value} value={j.value}>{j.label}</option>
+                        ))}
+                      </select>
+                      <p className="text-forest-900/40 text-xs font-body mt-2">
+                        Not sure? Choose "Other / not sure" and our sales team will confirm it with you.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Quantity and sizes ── */}
+                <div>
+                  <h2 className={SECTION}>Quantity and sizes</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <p className={LABEL}>Adult sizes</p>
+                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                        {ADULT_SIZES.map((size) => (
+                          <label key={size} className="text-center">
+                            <span className="block text-xs font-body text-forest-900/60 mb-1">{sizeLabel(size)}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              inputMode="numeric"
+                              aria-label={`Quantity for adult size ${sizeLabel(size)}`}
+                              value={sizes[size] ?? ""}
+                              onChange={(e) => setSizeQty(size, e.target.value)}
+                              className="w-full px-2 py-2 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body text-center focus:outline-none focus:border-teal-500 [color-scheme:light]"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className={LABEL}>Kids sizes</p>
+                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                        {KIDS_SIZES.map((size) => (
+                          <label key={size} className="text-center">
+                            <span className="block text-xs font-body text-forest-900/60 mb-1">{sizeLabel(size)}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              inputMode="numeric"
+                              aria-label={`Quantity for kids size ${sizeLabel(size)}`}
+                              value={sizes[size] ?? ""}
+                              onChange={(e) => setSizeQty(size, e.target.value)}
+                              className="w-full px-2 py-2 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body text-center focus:outline-none focus:border-teal-500 [color-scheme:light]"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-end">
+                      <div>
+                        <label className={LABEL} htmlFor="q-total">Total quantity *</label>
+                        <input
+                          id="q-total"
+                          type="number"
+                          min={1}
+                          step={1}
+                          inputMode="numeric"
+                          className={FIELD}
+                          value={matrixTotal > 0 ? matrixTotal : totalQty}
+                          onChange={(e) => setTotalQty(e.target.value)}
+                          readOnly={matrixTotal > 0}
+                          placeholder="e.g. 30"
+                          required={matrixTotal === 0}
+                        />
+                      </div>
+                      <p className="text-forest-900/50 text-xs font-body">
+                        {matrixTotal > 0
+                          ? `Added up from the size breakdown: ${matrixTotal} pieces.`
+                          : "Fill in the size breakdown above and the total is added up for you."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Design details ── */}
+                <div>
+                  <h2 className={SECTION}>Design details</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="sm:col-span-2">
+                      <label className={LABEL} htmlFor="q-concept">Design concept / theme</label>
+                      <input id="q-concept" className={FIELD} value={design.design_concept} onChange={(e) => setDesign({ ...design, design_concept: e.target.value })} placeholder="e.g. School sports day 2027" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-main-color">Main colour</label>
+                      <input id="q-main-color" className={FIELD} value={design.main_color} onChange={(e) => setDesign({ ...design, main_color: e.target.value })} placeholder="e.g. Navy blue" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-second-color">Secondary colour</label>
+                      <input id="q-second-color" className={FIELD} value={design.secondary_color} onChange={(e) => setDesign({ ...design, secondary_color: e.target.value })} placeholder="e.g. White" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-collar">Collar type</label>
+                      <input id="q-collar" className={FIELD} value={design.collar_type} onChange={(e) => setDesign({ ...design, collar_type: e.target.value })} placeholder="e.g. Round neck" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-fabric">Fabric</label>
+                      <input id="q-fabric" className={FIELD} value={design.fabric_type} onChange={(e) => setDesign({ ...design, fabric_type: e.target.value })} placeholder="e.g. Microfiber" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-sleeve">Sleeve type</label>
+                      <input id="q-sleeve" className={FIELD} value={design.sleeve_type} onChange={(e) => setDesign({ ...design, sleeve_type: e.target.value })} placeholder="e.g. Short sleeve" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-namenumber">Names / numbers needed</label>
+                      <select id="q-namenumber" className={FIELD} value={design.name_number_required} onChange={(e) => setDesign({ ...design, name_number_required: e.target.value })}>
+                        {NAME_NUMBER_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className={LABEL} htmlFor="q-design-notes">Notes for the designer</label>
+                      <textarea id="q-design-notes" rows={3} className={`${FIELD} resize-none`} value={design.design_notes} onChange={(e) => setDesign({ ...design, design_notes: e.target.value })} placeholder="Logo placement, sponsor logos, fonts, anything the designer should know…" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Names and numbers ── */}
+                <div>
+                  <h2 className={SECTION}>Names and numbers</h2>
+                  <label className="flex items-center gap-2 mb-4">
+                    <input
+                      type="checkbox"
+                      checked={namesetOpen}
+                      onChange={(e) => setNamesetOpen(e.target.checked)}
+                      className="w-4 h-4 accent-teal-500"
+                    />
+                    <span className="text-sm font-body text-forest-900">
+                      I want to type in the name and number list now
+                    </span>
+                  </label>
+                  {namesetOpen ? (
+                    <div className="space-y-3">
+                      {nameset.map((row, i) => (
+                        <div key={i} className="grid grid-cols-2 sm:grid-cols-[1.4fr_0.6fr_0.6fr_1.4fr_auto] gap-2">
+                          <input className={FIELD} value={row.name ?? ""} onChange={(e) => setNamesetField(i, "name", e.target.value)} placeholder="Name" aria-label={`Name, row ${i + 1}`} />
+                          <input className={FIELD} value={row.number ?? ""} onChange={(e) => setNamesetField(i, "number", e.target.value)} placeholder="No." aria-label={`Number, row ${i + 1}`} />
+                          <input className={FIELD} value={row.size ?? ""} onChange={(e) => setNamesetField(i, "size", e.target.value)} placeholder="Size" aria-label={`Size, row ${i + 1}`} />
+                          <input className={FIELD} value={row.remark ?? ""} onChange={(e) => setNamesetField(i, "remark", e.target.value)} placeholder="Remark" aria-label={`Remark, row ${i + 1}`} />
+                          <button
+                            type="button"
+                            onClick={() => setNameset((rows) => (rows.length > 1 ? rows.filter((_, j) => j !== i) : rows))}
+                            aria-label={`Remove row ${i + 1}`}
+                            className="text-forest-900/40 hover:text-red-600 transition-colors px-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setNameset((rows) => (rows.length < 50 ? [...rows, emptyNameset()] : rows))}
+                        className="inline-flex items-center gap-1.5 text-sm font-body text-teal-600 hover:text-teal-700"
+                      >
+                        <Plus className="w-4 h-4" /> Add another row
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-forest-900/50 text-sm font-body">
+                      You can also upload the list as a CSV or Excel file below — we read it for you.
+                    </p>
+                  )}
+                </div>
+
+                {/* ── Deadline and delivery ── */}
+                <div>
+                  <h2 className={SECTION}>Deadline and delivery</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className={LABEL} htmlFor="q-event">Event date</label>
+                      <input id="q-event" type="date" min={today} className={FIELD} value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-delivery-date">Needed by (delivery date)</label>
+                      <input id="q-delivery-date" type="date" min={today} className={FIELD} value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-priority">Priority</label>
+                      <select id="q-priority" className={FIELD} value={priority} onChange={(e) => setPriority(e.target.value as EnquiryPriority)}>
+                        {PRIORITIES.map((p) => (
+                          <option key={p.value} value={p.value}>{p.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-delivery-method">Collection or delivery</label>
+                      <select id="q-delivery-method" className={FIELD} value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value as DeliveryMethod | "")}>
+                        <option value="">Decide later</option>
+                        {DELIVERY_METHODS.map((d) => (
+                          <option key={d.value} value={d.value}>{d.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {deliveryMethod !== "" && deliveryMethod !== "pickup" && (
+                      <div className="sm:col-span-2">
+                        <label className={LABEL} htmlFor="q-address">Delivery address</label>
+                        <textarea id="q-address" rows={2} className={`${FIELD} resize-none`} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Street, city, postcode, state" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Files ── */}
+                <div>
+                  <h2 className={SECTION}>Artwork, logo and lists</h2>
+                  <FileUploadBox
+                    files={files}
+                    onChange={setFiles}
+                    onInteract={track.start}
+                    hint="Upload your logo, artwork, design reference, size list or name and number list"
+                  />
+                </div>
+
+                {/* ── Remarks ── */}
+                <div>
+                  <label className={LABEL} htmlFor="q-notes">Anything else we should know?</label>
+                  <textarea id="q-notes" rows={4} className={`${FIELD} resize-none`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional notes or requirements…" />
+                </div>
+
                 <button
                   type="submit"
-                  disabled={mutation.isPending}
+                  disabled={pending}
                   className="w-full bg-[#d7ff00] text-[#0d1f16] px-5 py-3.5 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" />
-                  {mutation.isPending ? "Submitting..." : "Request Quotation"}
+                  {pending ? "Submitting…" : "Request Quotation"}
                 </button>
               </form>
 
@@ -225,8 +639,14 @@ export default function Quotation() {
               <h3 className="font-display text-2xl text-forest-900 uppercase mb-3">
                 Quotation Request Submitted
               </h3>
+              {enquiryNo && (
+                <p className="text-forest-900 text-base font-body mb-3">
+                  Your enquiry number is <span className="font-medium">{enquiryNo}</span> — please quote it when you contact us.
+                </p>
+              )}
               <p className="text-forest-900/70 text-base font-body max-w-[480px] mx-auto mb-8">
                 Thank you! Our sales team will review your request and get back to you within 24 hours.
+                A confirmation email is on its way to you.
               </p>
               <Link
                 to="/"

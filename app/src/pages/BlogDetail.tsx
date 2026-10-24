@@ -2,6 +2,7 @@ import { useParams, Link, Navigate } from "react-router-dom";
 import { ArrowLeft, Calendar, Tag } from "lucide-react";
 import SEOHead from "../components/SEOHead";
 import { useBlog, useBlogs } from "../hooks/useBlogs";
+import { formatDate } from "../lib/format";
 
 export default function BlogDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -27,9 +28,7 @@ export default function BlogDetail() {
   }
   if (error || !blog) return <Navigate to="/blog" replace />;
 
-  const publishedDate = blog.published_at
-    ? new Date(blog.published_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
-    : "";
+  const publishedDate = formatDate(blog.published_at);
 
   const related = (allBlogs || [])
     .filter((b: any) => b.slug !== blog.slug)

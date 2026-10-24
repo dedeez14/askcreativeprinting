@@ -1,4 +1,23 @@
-const BASE = import.meta.env.VITE_API_BASE ?? 'https://erp.askcreativeprinting.com/api/landing/v1';
+/**
+ * The MOVERA ERP public landing API (https://erp.askcreativeprinting.com/api/landing/v1).
+ *
+ * Envelope: every /api/landing/v1 endpoint answers {success, data} or {success:false, error}.
+ * A few ERP endpoints outside that prefix answer plain JSON (the customer tracking feed,
+ * GET /p/job-status/{token}) — those use `fetchErpJson`, not `apiGet`.
+ */
+export const API_BASE =
+  (import.meta.env.VITE_API_BASE as string | undefined) ?? 'https://erp.askcreativeprinting.com/api/landing/v1';
+
+/** The ERP origin behind the API base — used for pages served outside /api/landing/v1. */
+export const ERP_ORIGIN = (() => {
+  try {
+    return new URL(API_BASE).origin;
+  } catch {
+    return 'https://erp.askcreativeprinting.com';
+  }
+})();
+
+const BASE = API_BASE;
 
 export class ApiError extends Error {
   status: number;
@@ -12,6 +31,10 @@ export class ApiError extends Error {
     this.fields = fields;
   }
 }
+
+/** True when the ERP does not serve this endpoint yet (older deployment) — callers fall back. */
+export const isMissingEndpoint = (err: unknown): boolean =>
+  err instanceof ApiError && (err.status === 404 || err.status === 405 || err.status === 501);
 
 export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { headers: { Accept: 'application/json' }, ...init });
@@ -35,4 +58,24 @@ export async function apiPost<T, B = unknown>(path: string, body: B): Promise<T>
     throw new ApiError(res.status, err.code, err.message, err.fields);
   }
   return json.data as T;
+}
+
+/**
+ * A plain-JSON GET against the ERP origin (no {success, data} envelope), for the customer
+ * tracking feed. `path` starts with a slash and is appended to the ERP origin.
+ */
+export async function fetchErpJson<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${ERP_ORIGIN}${path}`, { headers: { Accept: 'application/json' }, ...init });
+  } catch (e) {
+    // Network error, or the browser refused the cross-origin read (the ERP must allow this
+    // origin in config/cors.php). Reported as a missing endpoint so the caller can fall back.
+    throw new ApiError(0, 'NETWORK', e instanceof Error ? e.message : 'Network error');
+  }
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body === null) {
+    throw new ApiError(res.status, `HTTP_${res.status}`, res.statusText || 'Request failed');
+  }
+  return body as T;
 }

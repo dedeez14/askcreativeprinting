@@ -194,22 +194,63 @@ export interface LandingProduct {
   meta_description?: string | null;
 }
 
-export interface EnquiryNamesetEntry { name?: string; number?: string; size?: string }
+
+// ─────────── Stage 4 — the ERP enquiry contract (06 B4/B10/B15) ───────────
+// Field names, value lists and limits below are the ones the ERP validates in
+// App\Http\Requests\Api\Landing\StoreEnquiryRequest — do not invent others.
+
+/** App\Support\JobTypes::CATALOGUE — the only job types the ERP accepts from the website. */
+export type ErpJobType = 'SUBLIMATION' | 'BANNER' | 'DTF_HEATPRESS' | 'DESIGN_ONLY' | 'OTHER';
+
+/** 06 B4 "Priority should map to LOW/NORMAL/HIGH/URGENT". */
+export type EnquiryPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+
+export type DeliveryMethod = 'pickup' | 'delivery' | 'courier';
+
+/** What a file is for (06 B10 file naming ASK-[Enquiry]-[Customer]-[Product]-[FileType]-[Version]). */
+export type UploadRole = 'logo' | 'artwork' | 'reference' | 'sizelist' | 'nameset';
+
+/** The descriptor POST /uploads returns; it is handed straight back to the ERP. */
+export interface UploadedFile {
+  path: string;            // landing/uploads/YYYYMM/<random>-<slug>.<ext> — chosen by the ERP
+  url: string;
+  original_name: string;
+  mime: string;
+  ext: string;
+  size: number;
+}
+
+/** One entry of `uploaded_files` on the enquiry (`role` is optional but drives the ASK name). */
+export interface UploadedFileRef {
+  path: string;
+  original_name?: string;
+  mime?: string;
+  size?: number;
+  role?: UploadRole;
+}
+
+export interface EnquiryNamesetEntry {
+  name?: string;
+  number?: string;
+  size?: string;
+  remark?: string;
+}
 
 export interface EnquiryPayload {
-  // Customer
+  // Customer — all four required by the ERP
   name: string;
   email: string;
   phone: string;
   company_name?: string;
 
-  // Product reference
-  product_id?: number;
+  // Product
+  product_id?: number;              // a catalogue row, when the enquiry starts on a product page
   product_category?: string;
   product_name_snapshot?: string;
-  erp_job_type?: string;
+  product_type?: string;            // what the website calls the product when there is no catalogue row
+  erp_job_type?: ErpJobType;
 
-  // Spec
+  // Design / specs → the designer's brief text
   design_details?: {
     design_concept?: string;
     main_color?: string;
@@ -218,29 +259,35 @@ export interface EnquiryPayload {
     fabric_type?: string;
     sleeve_type?: string;
     design_notes?: string;
+    name_number_required?: string;
   };
+
+  // Quantity — total and/or the size matrix (the ERP sums the matrix when total_qty is absent)
   total_qty?: number;
   size_breakdown?: Record<string, number>;
+
+  // Nameset — rows typed in; a CSV/XLS/XLSX list uploaded with role 'nameset' is read server-side
   nameset_data?: EnquiryNamesetEntry[];
 
   // Deadline + delivery
-  event_date?: string;        // YYYY-MM-DD
-  delivery_date?: string;
-  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
-  delivery_method?: 'pickup' | 'delivery' | 'courier';
+  event_date?: string;              // YYYY-MM-DD
+  delivery_date?: string;           // YYYY-MM-DD
+  priority?: EnquiryPriority;
+  delivery_method?: DeliveryMethod;
   delivery_address?: string;
 
-  // Uploaded design files (already POST'd to /uploads — server returns these descriptors)
-  uploaded_files?: Array<{
-    path: string;
-    original_name: string;
-    mime: string;
-    size: number;
-  }>;
+  // Files already sent to POST /uploads (max 20)
+  uploaded_files?: UploadedFileRef[];
 
-  // Anti-bot
-  website: string;            // honeypot — must be empty
-  _t: number;                 // form-open epoch (seconds)
+  // 06 B15 — enquiry source / campaign
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  page_url?: string;
+
+  // Anti-bot (kept): honeypot must stay empty, _t is the form-open epoch (min 3 s before submit)
+  website: string;
+  _t: number;
 
   notes?: string;
 }
@@ -263,4 +310,118 @@ export interface EnquiryResponse {
   assigned_sales: string | null;
   whatsapp_url?: string;
   created_at: string;
+}
+
+// ─────────── Stage 4 — Online Design Tool (doc 07, 06 B5) ───────────
+// GET  /design-submissions/options  → DesignStudioOptions (admin-editable lists; the server
+//                                     validates every submitted value against them)
+// POST /design-submissions          → DesignSubmissionResponse
+
+export interface DesignStudioOptionProduct {
+  id: number;
+  name: string;
+  category: string;
+}
+
+export interface DesignStudioOptions {
+  contract: string;
+  enabled: boolean;
+  categories: string[];
+  collars: string[];
+  fabrics: string[];
+  sleeves: string[];
+  sizes: string[];
+  colors: string[];                  // empty = any #RRGGBB is accepted
+  placements: string[];
+  nameset_positions: string[];
+  priorities: EnquiryPriority[];
+  delivery_methods: DeliveryMethod[];
+  min_quantity: number;
+  max_quantity: number;
+  products: DesignStudioOptionProduct[];
+}
+
+export interface DesignSubmissionPlacement {
+  position: string;                  // one of options.placements
+  artwork_index?: number;            // index into `artwork`
+  note?: string;
+}
+
+export interface DesignSubmissionNameset {
+  required?: boolean;
+  position?: string;                 // one of options.nameset_positions
+  number_style?: string;
+  remark?: string;
+  entries?: EnquiryNamesetEntry[];
+}
+
+export interface DesignSubmissionPayload {
+  // Step 4 — contact
+  name: string;
+  email: string;
+  phone: string;
+  company_name?: string;
+
+  // Step 1 — product
+  category: string;
+  product: string;
+
+  // Step 2 — customise (main_color is required by the ERP)
+  design: {
+    design_concept?: string;
+    main_color: string;
+    secondary_color?: string;
+    collar?: string;
+    fabric?: string;
+    sleeve?: string;
+    design_notes?: string;
+  };
+  sizes: Record<string, number>;     // at least one size, each qty >= 1, total within the bounds
+  placements?: DesignSubmissionPlacement[];
+  nameset?: DesignSubmissionNameset;
+
+  // Step 3 — artwork (and optionally the customer's own preview copy)
+  artwork?: Array<{ path: string; original_name?: string }>;
+  preview?: { path: string; original_name?: string };
+
+  // Step 4 — deadline + delivery
+  event_date?: string;
+  delivery_date?: string;
+  priority?: EnquiryPriority;
+  delivery_method?: DeliveryMethod;
+  delivery_address?: string;
+  notes?: string;
+
+  // Anti-bot, same contract as the quotation form
+  website: string;
+  _t: number;
+}
+
+export interface DesignSubmissionResponse {
+  enquiry_no: string;
+  total_qty: number;
+  files: number;
+  preview: boolean;
+  summary: string;                   // the structured brief summary (06 B5)
+}
+
+// ─────────── Stage 4 — customer order tracking (06 B7/B8/B9/B14) ───────────
+// GET /p/job-status/{token} — plain JSON, customer-facing fields ONLY.
+
+export type JobStatusStepState = 'done' | 'current' | 'pending';
+
+export interface JobStatusStep {
+  key: string;
+  label: string;
+  state: JobStatusStepState;
+}
+
+export interface JobStatusResponse {
+  job_number: string | null;
+  job_title: string | null;
+  cancelled: boolean;
+  status: string | null;
+  status_label: string | null;
+  steps: JobStatusStep[];
+  updated_at: string | null;
 }

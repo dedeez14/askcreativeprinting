@@ -21,6 +21,11 @@ export interface DesignStudioData {
   collar_options: string[];
   sizes: string[];
   colors: string[];
+  // Stage 4 additions (doc 07 step 2) — absent on an ERP that has not been promoted yet, so the
+  // design tool falls back to the ERP's own defaults (see useDesignSubmission).
+  fabric_options?: string[];
+  sleeve_options?: string[];
+  placements?: string[];
   whatsapp_number: string | null;
   min_quantity: number;
   max_quantity: number;
