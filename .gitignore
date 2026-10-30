@@ -5,3 +5,9 @@ dist/
 .env
 .env.local
 .vite/
+
+# Working copies that must never become part of the site's history:
+# backups/ holds dist snapshots (the 6-Jul bundle that saved sitemap.xml on 29-Oct),
+# app.backup-* is an old copy of the app folder.
+backups/
+app.backup-*/

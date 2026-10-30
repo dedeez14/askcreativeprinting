@@ -3,13 +3,30 @@ import { useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { services as fallbackServices } from "../data/services";
 import { useFeatures } from "../hooks/useFeatures";
+import { usePages } from "../hooks/usePages";
+import { formatMoney } from "../lib/format";
 import SEOHead from "../components/SEOHead";
 
 export default function Services() {
   const { data: apiFeatures } = useFeatures();
+  const { data: pages } = usePages();
 
-  // Map API features → services shape; fallback to hardcoded services.ts (richer SEO)
+  /**
+   * 06 §11 p.4 — the SEO / service pages come from the ERP CMS (GET /pages), so the client can add a
+   * keyword page or change a starting price without a developer (§9 p.4). The ERP's own list wins; a
+   * feature list, then src/data/services.ts, keep the page working on an older ERP.
+   */
   const services = useMemo(() => {
+    if (pages && pages.length > 0) {
+      return pages.map((p) => ({
+        slug: p.slug,
+        title: p.title,
+        shortTitle: p.title,
+        description: p.excerpt ?? "",
+        image: p.image_url ?? p.product?.featured_image ?? "/images/real-printer-jersey.jpg",
+        startingPrice: p.starting_price,
+      }));
+    }
     if (apiFeatures && apiFeatures.length > 0) {
       return apiFeatures.map((f: any) => {
         const slug = (f.link_url || "").replace(/^\/services\//, "") || f.title.toLowerCase().replace(/\s+/g, "-");
@@ -23,7 +40,7 @@ export default function Services() {
       });
     }
     return fallbackServices;
-  }, [apiFeatures]);
+  }, [pages, apiFeatures]);
 
   return (
     <>
@@ -67,6 +84,13 @@ export default function Services() {
                 <div className="p-6 md:p-8">
                   <h3 className="font-display text-2xl text-forest-900 uppercase mb-3">{service.shortTitle}</h3>
                   <p className="text-forest-900/70 text-base font-body leading-relaxed mb-4">{service.description}</p>
+                  {/* 06 §11 p.4 — starting price on the service page and in its card. */}
+                  {(service as { startingPrice?: number | null }).startingPrice != null && (
+                    <p className="text-forest-900 text-sm font-body font-medium mb-4" data-starting-price>
+                      From {formatMoney((service as { startingPrice?: number | null }).startingPrice)} per piece
+                      <span className="text-forest-900/50"> · final price confirmed by sales</span>
+                    </p>
+                  )}
                   <span className="text-forest-900 text-sm font-body font-medium flex items-center gap-1 group-hover:text-teal-600 transition-colors">
                     Learn More <ArrowRight className="w-4 h-4" />
                   </span>

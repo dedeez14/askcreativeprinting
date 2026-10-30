@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Check, ArrowRight, MessageCircle, Upload, Package, Clock, Layers } from "lucide-react";
 import SEOHead from "../components/SEOHead";
+import FaqList from "../components/FaqList";
 import { useProduct } from "../hooks/useProducts";
 import { useSettings } from "../hooks/useSettings";
 import type { LandingProduct, LandingProductOptionItem } from "../types/landing";
@@ -259,6 +260,12 @@ export default function ProductDetail() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* 06 §12 p.4 "FAQ content should be reusable across product pages and SEO pages" — the same
+              admin FAQ store as the FAQ page and the SEO pages, scoped to this product. */}
+          <div className="mt-16 max-w-[760px]">
+            <FaqList forSlug={product.slug} />
           </div>
         </div>
       </section>

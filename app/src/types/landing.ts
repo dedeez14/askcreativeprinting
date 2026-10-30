@@ -77,6 +77,9 @@ export interface LandingFaq {
   id: number;
   question: string;
   answer: string;
+  category?: string | null;
+  /** 06 §12 — product / SEO page slugs this answer is also shown on. */
+  applies_to?: string[];
   sort_order: number;
 }
 
@@ -93,7 +96,51 @@ export interface LandingGallery {
   title: string | null;
   description: string | null;
   image_url: string | null;
+  image_path?: string | null;
   category: string | null;
+  /** 06 §10 — "product type, client type if allowed, quantity, printing method". */
+  product_type?: string | null;
+  client_type?: string | null;
+  quantity?: number | null;
+  printing_method?: string | null;
+}
+
+/** 06 §11 — one admin-managed SEO / service landing page. */
+export interface LandingPage {
+  slug: string;
+  aliases: string[];
+  title: string;
+  excerpt: string | null;
+  content: string;
+  meta_title: string | null;
+  meta_description: string | null;
+  image_url: string | null;
+  starting_price: number | null;
+  price_currency: string;
+  product_slug: string | null;
+  gallery_category: string | null;
+  quotation_url: string;
+  product?: LandingProduct | null;
+  faqs?: LandingFaq[];
+  gallery?: LandingGallery[];
+}
+
+/** 06 §5 — the read-only estimate of POST /estimate. Never a quotation. */
+export interface PriceEstimate {
+  product: { id: number; slug: string; name: string };
+  total_qty: number;
+  currency: string;
+  unit_price_min: number | null;
+  unit_price_max: number | null;
+  total_min: number | null;
+  total_max: number | null;
+  tier: string | null;
+  custom_pricing: boolean;
+  moq: number;
+  below_moq: boolean;
+  moq_message: string | null;
+  priced: boolean;
+  disclaimer: string;
 }
 
 export interface LandingAbout {
@@ -321,6 +368,13 @@ export interface DesignStudioOptionProduct {
   id: number;
   name: string;
   category: string;
+  /** 06 §5 — the catalogue row that prices this product (null = no estimate for it). */
+  product_slug?: string | null;
+  moq?: number | null;
+  price_min?: number | null;
+  price_max?: number | null;
+  price_currency?: string;
+  lead_time_days?: number | null;
 }
 
 export interface DesignStudioOptions {
@@ -339,6 +393,8 @@ export interface DesignStudioOptions {
   min_quantity: number;
   max_quantity: number;
   products: DesignStudioOptionProduct[];
+  /** 06 §5 "final price must remain subject to sales confirmation". */
+  price_disclaimer?: string;
 }
 
 export interface DesignSubmissionPlacement {

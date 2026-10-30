@@ -27,6 +27,7 @@ import { useFeatures } from "../hooks/useFeatures";
 import { useGallery } from "../hooks/useGallery";
 import { useBrands } from "../hooks/useBrands";
 import { useSettings } from "../hooks/useSettings";
+import { useSalesWhatsApp } from "../hooks/useSalesWhatsApp";
 
 // Map icon name (from API) → Lucide component
 const ICON_MAP: Record<string, any> = {
@@ -110,6 +111,18 @@ export default function Home() {
   const { data: apiGallery } = useGallery();
   const { data: apiBrands } = useBrands();
   const { data: settings } = useSettings();
+  const sales = useSalesWhatsApp();
+
+  /**
+   * 06 §2 p.3 — "Homepage should show trust indicators: years of experience, clients served, items
+   * printed, production capability, and core services." The figures are admin-editable
+   * (GET /settings → hero_stats, Admin → Landing → Settings → Hero Stats); a stat with no value is
+   * not rendered, so the band never shows an empty figure.
+   */
+  const stats = useMemo(
+    () => (settings?.hero_stats ?? []).filter((s: any) => s?.value && s?.label),
+    [settings],
+  );
 
   const trust = useMemo(() => {
     if (settings?.trust_points && settings.trust_points.length > 0) {
@@ -152,8 +165,8 @@ export default function Home() {
   }, [apiFeatures]);
 
   const gallery = useMemo(() => {
-    if (apiGallery && apiGallery.length > 0) {
-      return apiGallery.slice(0, 6).map((g: any) => ({
+    if (apiGallery && apiGallery.items.length > 0) {
+      return apiGallery.items.slice(0, 6).map((g: any) => ({
         image: g.image_path?.startsWith("/") ? g.image_path : (g.image_url || g.image_path),
         category: g.category || "General",
         title: g.title,
@@ -271,14 +284,21 @@ export default function Home() {
                 Get Quotation
               </Link>
               <a
-                href="https://wa.me/60102174774"
+                href={sales.link("Hi ASK Creative, I would like to ask about custom printing.")}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="border border-white/30 text-white px-6 py-3 rounded-md text-sm font-body font-medium hover:border-[#d7ff00] hover:text-[#d7ff00] transition-colors w-full sm:w-auto text-center flex items-center justify-center gap-2"
               >
                 <MessageCircle className="w-4 h-4" />
-                WhatsApp Us
+                WhatsApp Sales Team
               </a>
+              {/* 06 §2 p.3 — the fourth hero CTA the brief names: "View Services". */}
+              <Link
+                to="/services"
+                className="border border-white/30 text-white px-6 py-3 rounded-md text-sm font-body font-medium hover:border-[#d7ff00] hover:text-[#d7ff00] transition-colors w-full sm:w-auto text-center"
+              >
+                View Services
+              </Link>
             </div>
           </div>
         </div>
@@ -291,6 +311,24 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ─── TRUST INDICATORS (06 §2 p.3) ─── */}
+      {stats.length > 0 && (
+        <section className="bg-[#d7ff00] py-8 md:py-10" data-trust-stats>
+          <div className="max-w-[1280px] mx-auto px-5 md:px-10">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 md:gap-8 text-center">
+              {stats.map((stat: any, i: number) => (
+                <div key={i} data-trust-stat={stat.label}>
+                  <div className="font-display text-3xl md:text-4xl text-[#0d1f16] leading-none">{stat.value}</div>
+                  <div className="text-[#0d1f16]/70 text-xs md:text-sm font-body uppercase tracking-wider mt-2">
+                    {stat.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── TRUST BAR ─── */}
       <section className="bg-forest-900 py-6 md:py-8">
@@ -585,7 +623,7 @@ export default function Home() {
               Get Quotation Now
             </Link>
             <a
-              href="https://wa.me/60102174774"
+              href={sales.link("Hi ASK Creative, I would like a quotation.")}
               target="_blank"
               rel="noopener noreferrer"
               className="border border-[#d7ff00] text-[#d7ff00] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#d7ff00]/10 transition-colors w-full sm:w-auto"

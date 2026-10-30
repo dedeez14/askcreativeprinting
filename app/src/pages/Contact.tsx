@@ -60,12 +60,12 @@ export default function Contact() {
       onSuccess: () => {
         track.markSubmitted();
         setSubmitted(true);
-        toast.success("Pesan terkirim. Tim sales akan menghubungi Anda.");
+        toast.success("Message sent. Our sales team will contact you shortly.");
       },
       onError: (err: any) => {
-        if (err?.status === 429) toast.error("Terlalu banyak permintaan, coba lagi sebentar.");
-        else if (err?.status === 422) toast.error(err?.message ?? "Periksa kembali isian Anda.");
-        else toast.error("Server bermasalah, coba lagi.");
+        if (err?.status === 429) toast.error("Too many requests. Please try again in a moment.");
+        else if (err?.status === 422) toast.error(err?.message ?? "Please check your details and try again.");
+        else toast.error("Something went wrong on our side. Please try again.");
       },
     });
   };

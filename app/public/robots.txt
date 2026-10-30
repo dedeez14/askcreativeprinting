@@ -1,0 +1,29 @@
+# robots.txt for askcreativeprinting.com
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Allow major crawlers explicitly
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# Crawl-delay for less aggressive bots
+User-agent: *
+Crawl-delay: 1
+
+Sitemap: https://askcreativeprinting.com/sitemap.xml

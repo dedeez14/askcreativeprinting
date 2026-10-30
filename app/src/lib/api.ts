@@ -46,6 +46,24 @@ export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
+/**
+ * Same GET, but the whole envelope — for the endpoints whose `meta` carries something the page needs
+ * (06 §10: the gallery's own category list, so the portfolio filters are the client's eight categories
+ * whether or not an entry exists in each yet).
+ */
+export async function apiGetEnvelope<T, M = Record<string, unknown>>(
+  path: string,
+  init?: RequestInit,
+): Promise<{ data: T; meta?: M }> {
+  const res = await fetch(`${BASE}${path}`, { headers: { Accept: 'application/json' }, ...init });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.success) {
+    const err = body?.error ?? { code: `HTTP_${res.status}`, message: res.statusText };
+    throw new ApiError(res.status, err.code, err.message, err.fields);
+  }
+  return { data: body.data as T, meta: body.meta as M };
+}
+
 export async function apiPost<T, B = unknown>(path: string, body: B): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',

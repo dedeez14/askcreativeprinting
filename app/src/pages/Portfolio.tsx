@@ -2,6 +2,11 @@ import { useState, useMemo } from "react";
 import SEOHead from "../components/SEOHead";
 import { useGallery } from "../hooks/useGallery";
 
+/**
+ * 06 §10 p.4 — "Each portfolio entry should include product type, client type if allowed, quantity,
+ * printing method, and short description." The entries come from the ERP CMS (Admin → Landing →
+ * Gallery), where those fields are now part of the form; these fallbacks are the offline copy.
+ */
 const FALLBACK_ITEMS = [
   { image: "/images/real-jersey-design.jpg", category: "Sublimation Jersey", title: "Custom SUBLAB Volleyball Jersey #10" },
   { image: "/images/real-jersey-showroom.jpg", category: "Sublimation Jersey", title: "Jersey Showroom Collection" },
@@ -16,20 +21,33 @@ export default function Portfolio() {
   const { data: apiGallery } = useGallery();
 
   const portfolioItems = useMemo(() => {
-    if (apiGallery && apiGallery.length > 0) {
-      return apiGallery.map((g: any) => ({
-        image: g.image_path?.startsWith("/") ? g.image_path : (g.image_url || g.image_path),
+    if (apiGallery && apiGallery.items.length > 0) {
+      return apiGallery.items.map((g) => ({
+        image: g.image_path?.startsWith("/") ? g.image_path : (g.image_url || g.image_path || ""),
         category: g.category || "General",
-        title: g.title,
+        title: g.title ?? "",
+        description: g.description ?? null,
+        productType: g.product_type ?? null,
+        clientType: g.client_type ?? null,
+        quantity: g.quantity ?? null,
+        printingMethod: g.printing_method ?? null,
       }));
     }
-    return FALLBACK_ITEMS;
+    return FALLBACK_ITEMS.map((i) => ({
+      ...i, description: null, productType: null, clientType: null, quantity: null, printingMethod: null,
+    }));
   }, [apiGallery]);
 
+  /**
+   * 06 §10 p.4 — the eight categories the brief names come from the API's own list, so each of them is
+   * offered even before the first entry is uploaded into it; a category only an entry uses is added.
+   */
   const categories = useMemo(() => {
-    const set = new Set<string>(portfolioItems.map(i => i.category));
-    return ["All", ...Array.from(set).sort()];
-  }, [portfolioItems]);
+    const fromApi = apiGallery?.categories ?? [];
+    const used = portfolioItems.map((i) => i.category);
+    const all = fromApi.length > 0 ? [...fromApi, ...used] : used;
+    return ["All", ...Array.from(new Set(all))];
+  }, [apiGallery, portfolioItems]);
 
   const filtered = activeCategory === "All"
     ? portfolioItems
@@ -94,6 +112,20 @@ export default function Portfolio() {
                 </div>
                 <p className="text-teal-600 text-xs font-body uppercase tracking-wider mt-3">{item.category}</p>
                 <p className="text-forest-900 text-base font-body font-medium mt-1">{item.title}</p>
+                {/* 06 §10 p.4 — product type, client type (when allowed), quantity, printing method. */}
+                {(item.productType || item.clientType || item.quantity || item.printingMethod) && (
+                  <p className="text-forest-900/50 text-xs font-body mt-1" data-entry-facts>
+                    {[
+                      item.productType,
+                      item.clientType,
+                      item.quantity ? `${item.quantity} pcs` : null,
+                      item.printingMethod,
+                    ].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+                {item.description && (
+                  <p className="text-forest-900/60 text-sm font-body mt-1 line-clamp-2">{item.description}</p>
+                )}
               </div>
             ))}
           </div>

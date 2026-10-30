@@ -14,6 +14,7 @@ const Product3DPreview = lazy(() => import("../components/Product3DPreview"));
 import { toast } from "sonner";
 import SEOHead from "../components/SEOHead";
 import FileUploadBox from "../components/FileUploadBox";
+import PriceEstimateBox from "../components/PriceEstimateBox";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
 import { useFormTracking } from "../hooks/useFormTracking";
 import { useDesignToolConfig, useDesignSubmission } from "../hooks/useDesignSubmission";
@@ -162,6 +163,16 @@ export default function OnlineDesign() {
   );
 
   const total = useMemo(() => sumSizes(sizes), [sizes]);
+
+  /**
+   * 06 §5 p.3 "view estimated price": the design-tool product the customer picked, which carries the
+   * catalogue row the ERP prices from (null when the admin has not linked one — then no estimate is
+   * shown rather than a guess).
+   */
+  const selectedOption = useMemo(
+    () => (options?.products ?? []).find((p) => p.name === selectedProduct) ?? null,
+    [options, selectedProduct],
+  );
   const minQty = options?.min_quantity ?? 1;
   const maxQty = options?.max_quantity ?? 100000;
   const namedCount = namesetEntries.filter((r) => (r.name ?? "").trim() !== "").length;
@@ -593,6 +604,9 @@ export default function OnlineDesign() {
                     )}
                   </div>
 
+                  {/* 06 §5 p.3 — the estimated price of what has been entered so far. */}
+                  <PriceEstimateBox studioProductId={selectedOption?.id} totalQty={total} compact />
+
                   <div>
                     <label className={LABEL} htmlFor="d-concept">Design concept / theme</label>
                     <input id="d-concept" className={FIELD} value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="e.g. Company futsal team 2027" />
@@ -753,6 +767,9 @@ export default function OnlineDesign() {
                       <div className="flex justify-between gap-4"><span className="text-forest-900/60">Artwork files</span><span className="text-forest-900">{artwork.length}</span></div>
                     </div>
                   </div>
+
+                  {/* 06 §5 p.3 — the estimate again on the review step, before "SUBMIT FOR QUOTATION". */}
+                  <PriceEstimateBox studioProductId={selectedOption?.id} totalQty={total} />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>

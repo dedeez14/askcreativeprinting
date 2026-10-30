@@ -12,6 +12,15 @@ export interface Service {
   products?: string[];
 }
 
+/**
+ * OFFLINE FALLBACK ONLY (06 §11 p.4 / §9 p.4).
+ *
+ * The live service / SEO pages are maintained by the client in the ERP CMS and read from
+ * GET /api/landing/v1/pages (src/hooks/usePages.ts). This array is what the site shows when that
+ * endpoint is unreachable, so it mirrors the eight keyword pages the brief names — including
+ * "Custom Sportswear Malaysia" and "Jersey Printing for School and Company Events" — plus the two
+ * extra pages the site has always published. Published slugs resolve through the ERP's own aliases.
+ */
 export const services: Service[] = [
   {
     slug: "sublimation-printing-sabah",
@@ -23,7 +32,7 @@ export const services: Service[] = [
     longDescription: "ASK Creative provides sublimation printing for custom jerseys, teamwear, event products and fabric-based merchandise. Sublimation is suitable for vibrant full-colour designs, sports apparel, team uniforms and custom promotional items. Our large-format sublimation printers produce stunning, durable prints that won't crack, peel or fade over time.",
     features: [
       "Full-colour, all-over printing",
-      "No minimum order quantity",
+      "Minimum order 8 pcs for sublimation",
       "Quick turnaround time",
       "Durable, wash-resistant prints",
       "Design support available"
@@ -159,6 +168,44 @@ export const services: Service[] = [
     ],
     image: "/images/real-mugs.jpg",
     icon: "Gift"
+  },
+  {
+    slug: "custom-sportswear-malaysia",
+    title: "Custom Sportswear Malaysia",
+    shortTitle: "Custom Sportswear",
+    metaTitle: "Custom Sportswear Malaysia | Team Kits Made in Sabah",
+    metaDescription: "Custom sportswear made in Malaysia: jerseys, singlets, tracksets, shorts and full team kits with your names, numbers and sponsor logos. Nationwide delivery from Sabah.",
+    description: "Full team kits made in Malaysia — jersey, shorts, singlet or trackset, with names, numbers and sponsor logos, delivered nationwide.",
+    longDescription: "ASK Creative manufactures custom sportswear in Malaysia from our own factory in Kota Kinabalu, Sabah, and delivers nationwide. One order can cover the whole kit: jersey, shorts, singlet, trackset and bag tags.",
+    features: [
+      "Jerseys, singlets, shorts, tracksets",
+      "Sublimation printing — sponsor logos cost no extra",
+      "Names, numbers and per-player size list",
+      "Kids and adult measurement charts",
+      "Nationwide delivery from Sabah"
+    ],
+    image: "/images/real-jersey-design.jpg",
+    icon: "Shirt",
+    products: ["Jersey", "Singlet", "Shorts", "Trackset", "Warm-Up", "Team Kit"]
+  },
+  {
+    slug: "jersey-printing-school-company-events",
+    title: "Jersey Printing for School and Company Events",
+    shortTitle: "Event Jersey Printing",
+    metaTitle: "Jersey Printing for School & Company Events | ASK Creative Sabah",
+    metaDescription: "Jersey printing for school sports days, company family days, annual dinners, tournaments and corporate events in Sabah. Bulk sizes, class or department names, fast approval.",
+    description: "Event jerseys for school sports days, company family days, tournaments and annual dinners — bulk sizes, class or department names, one approval for the whole order.",
+    longDescription: "School sports days, company family days, tournaments and annual dinners run on a deadline, so the order is built around your event date. Submit one size list for every class, house or department and we handle the rest.",
+    features: [
+      "One order for many teams, each in its own colour",
+      "Class, house or department names per group",
+      "Bulk size breakdown, kids sizes included",
+      "A single mockup approval for the whole order",
+      "Delivery planned against your event date"
+    ],
+    image: "/images/real-jersey-showroom.jpg",
+    icon: "Users",
+    products: ["Sports Day Jersey", "Family Day Jersey", "Tournament Jersey", "Event T-Shirt", "Class Jersey"]
   }
 ];
 
