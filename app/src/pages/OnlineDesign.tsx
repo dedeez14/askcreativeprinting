@@ -1,20 +1,20 @@
-import { useState, useRef, useMemo, useEffect, Suspense, lazy } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { sameOriginMedia } from "../lib/media";
 import { Link } from "react-router-dom";
 import {
-  Shirt, Trophy, HardHat, StickyNote, Wine, Award, FileText,
-  Gift, Tag, Sticker, Briefcase, Crown, Star, Heart,
-  Package, ShoppingBag, Image as ImageIcon,
-  Check, ChevronRight, ChevronLeft, Palette, Type, Ruler,
-  Loader2, Move3D, Plus, Trash2,
-  type LucideIcon,
+  Shirt,
+  Check, ChevronRight, ChevronLeft,
+  Upload, Plus, Trash2,
 } from "lucide-react";
 
-// WebGL preview is heavy (three.js) — only pulled in when the user reaches Step 2.
-const Product3DPreview = lazy(() => import("../components/Product3DPreview"));
+// The WebGL preview is lazy-loaded inside StudioPreview, which both screens share.
 import { toast } from "sonner";
 import SEOHead from "../components/SEOHead";
 import FileUploadBox from "../components/FileUploadBox";
 import PriceEstimateBox from "../components/PriceEstimateBox";
+import StudioPreview from "../components/StudioPreview";
+import ProductGlyph from "../components/ProductGlyph";
+import ColorPicker from "../components/ColorPicker";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
 import { useFormTracking } from "../hooks/useFormTracking";
 import { useDesignToolConfig, useDesignSubmission } from "../hooks/useDesignSubmission";
@@ -32,12 +32,11 @@ import type {
   EnquiryPriority,
 } from "../types/landing";
 
-const ICONS: Record<string, LucideIcon> = {
-  Shirt, Trophy, HardHat, StickyNote, Wine, Award, FileText,
-  Gift, Tag, Sticker, Briefcase, Crown, Star, Heart,
-  Package, ShoppingBag, Image: ImageIcon,
-};
-const iconFor = (name: string): LucideIcon => ICONS[name] ?? Shirt;
+/*
+ * The ERP sends one coarse icon name per category ("Trophy" for every jersey), which made the
+ * picker a wall of identical tiles. ProductGlyph draws the product's own silhouette from its name
+ * instead, so the icon list is no longer needed here.
+ */
 
 const FIELD =
   "w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500 [color-scheme:light]";
@@ -64,7 +63,12 @@ const emptyNameset = (): EnquiryNamesetEntry => ({ name: "", number: "", size: "
 
 /**
  * Doc 07 — the Online Design Tool, four steps:
- *   1 Choose your product · 2 Customize · 3 Upload your artwork · 4 Submit for quotation
+ *   1 Choose your product · 2 Design (customize + artwork, one screen) · 3 Submit for quotation
+ *
+ * Customizing and uploading used to be two screens. They are one now (user, 31-Oct-2026:
+ * "step customize dan upload design harusnya jadi satu"), because they are one decision: you
+ * cannot judge a colour without seeing the print on it, and you cannot place a print without
+ * seeing the garment. The preview sits beside both and follows every field.
  *
  * Every option offered here comes from the ERP's own admin-editable lists, because the ERP
  * validates each submitted value against them (06 §9 "Admin should be able to enable/disable
@@ -97,6 +101,15 @@ export default function OnlineDesign() {
 
   // Step 3 — artwork + placements
   const [artwork, setArtwork] = useState<UploadedFileWithRole[]>([]);
+  /**
+   * The uploaded file the 3D preview can put on the product. Only a raster or SVG image can be a
+   * texture — a PDF, AI or EPS is the real print file and the designer opens it, so those upload
+   * fine and simply are not drawn on the model.
+   */
+  const artworkPreviewUrl = useMemo(() => {
+    const img = artwork.find((f) => /^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(f.mime ?? ""));
+    return sameOriginMedia(img?.url);
+  }, [artwork]);
   const [placements, setPlacements] = useState<DesignSubmissionPlacement[]>([]);
 
   // Step 4 — contact, deadline, delivery
@@ -393,7 +406,7 @@ export default function OnlineDesign() {
         <div className="max-w-[960px] mx-auto px-5 md:px-10">
           {/* Step Indicator */}
           <div className="flex items-center justify-between mb-10 md:mb-14">
-            {["Choose Product", "Customize", "Upload Design", "Submit"].map((label, i) => (
+            {["Choose Product", "Design", "Submit"].map((label, i) => (
               <div key={i} className="flex items-center flex-1 last:flex-none">
                 <div className="flex flex-col items-center">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-body font-medium ${step > i + 1 ? "bg-teal-500 text-white" : step === i + 1 ? "bg-[#d7ff00] text-[#0d1f16]" : "bg-forest-900/10 text-forest-900/40"}`}>
@@ -408,7 +421,8 @@ export default function OnlineDesign() {
 
           {/* Step 1: Choose Product */}
           {step === 1 && (
-            <div>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(300px,380px)] gap-8 lg:gap-10">
+              <div>
               <h2 className="font-display text-2xl text-forest-900 uppercase mb-6">Choose Your Product</h2>
               <div className="flex flex-wrap gap-2 mb-8">
                 {options.categories.map((cat) => (
@@ -420,16 +434,15 @@ export default function OnlineDesign() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {products.map((product) => {
-                  const Icon = iconFor(product.icon);
                   const known = allowedProducts.size === 0 || allowedProducts.has(product.name.toLowerCase());
                   return (
                     <button key={product.id} onClick={() => setSelectedProduct(product.name)} disabled={!known}
                       title={known ? undefined : "This product is not available for online design right now."}
                       className={`flex flex-col items-center gap-3 p-5 rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${selectedProduct === product.name ? "border-[#d7ff00] bg-[#d7ff00]/5" : "border-forest-900/10 hover:border-forest-900/30"}`}>
                       {product.image_url
-                        ? <img src={product.image_url} alt={product.name} className="w-8 h-8 object-contain" />
-                        : <Icon className="w-8 h-8 text-forest-900/70" />}
-                      <span className="text-sm font-body text-forest-900">{product.name}</span>
+                        ? <img src={product.image_url} alt={product.name} className="w-10 h-10 object-contain" />
+                        : <ProductGlyph product={product.name} className="w-10 h-10 text-forest-900/70" />}
+                      <span className="text-sm font-body text-forest-900 text-center leading-snug">{product.name}</span>
                     </button>
                   );
                 })}
@@ -442,97 +455,135 @@ export default function OnlineDesign() {
               <div className="mt-8 flex justify-end">
                 <button onClick={() => selectedProduct && setStep(2)} disabled={!selectedProduct}
                   className="bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                  Next <ChevronRight className="w-4 h-4" />
+                  Start designing <ChevronRight className="w-4 h-4" />
                 </button>
+              </div>
+              </div>
+
+              {/* The model, right here on the first screen — picking a product should show you the
+                  product, not a name in a box (user, 31-Oct: "pada saat pilih product category dan
+                  product type juga tampil model"). */}
+              <div className="lg:sticky lg:top-28 h-fit">
+                {selectedProduct ? (
+                  <StudioPreview
+                    product={selectedProduct} collar={collarValue} color={colorValue}
+                    secondaryColor={secondaryColor} sleeve={sleeveValue} fabric={fabricValue}
+                    size={Object.keys(cleanSizes(sizes))[0] ?? sizeList[0] ?? "M"}
+                    caption={selectedProduct}
+                    sub={wearable && isGarment(selectedProduct) ? collarValue : category}
+                  />
+                ) : (
+                  <div className="rounded-xl border border-dashed border-forest-900/15 bg-off-white h-[340px] md:h-[400px] flex flex-col items-center justify-center gap-3 px-8 text-center">
+                    <Shirt className="w-10 h-10 text-forest-900/20" />
+                    <p className="text-sm font-body text-forest-900/50">
+                      Pick a product and it appears here — turn it, recolour it, and put your artwork on it.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Step 2: Customize */}
+          {/* Step 2: Design — customizing and the artwork, on one screen. */}
           {step === 2 && (
             <div>
-              <h2 className="font-display text-2xl text-forest-900 uppercase mb-6">Customize Your Product</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                {/* Live 3D preview — reflects the chosen product, collar, colour and size. */}
-                <div className="bg-off-white rounded-lg overflow-hidden relative h-fit">
-                  <div className="h-[340px] md:h-[420px] w-full">
-                    <Suspense
-                      fallback={
-                        <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-forest-900/50">
-                          <Loader2 className="w-7 h-7 animate-spin" />
-                          <p className="text-xs font-body">Loading 3D preview…</p>
+              <div className="mb-6">
+                <h2 className="font-display text-2xl text-forest-900 uppercase">Design Your Product</h2>
+                <p className="text-sm font-body text-forest-900/55 mt-1">
+                  Everything on the right changes the model on the left. Upload your artwork and you will see it on the product.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(320px,460px)_1fr] gap-8 lg:gap-10">
+                {/* The model stays in view while the form is filled in. */}
+                <div className="lg:sticky lg:top-28 h-fit space-y-3">
+                  <StudioPreview
+                    product={selectedProduct ?? "T-Shirt"}
+                    collar={collarValue}
+                    color={colorValue}
+                    secondaryColor={secondaryColor}
+                    sleeve={sleeveValue}
+                    fabric={fabricValue}
+                    size={Object.keys(cleanSizes(sizes))[0] ?? sizeList[0] ?? "M"}
+                    artworkUrl={artworkPreviewUrl}
+                    autoRotate={!artworkPreviewUrl}
+                    caption={selectedProduct ?? undefined}
+                    sub={[
+                      wearable && isGarment(selectedProduct) ? collarValue : null,
+                      total > 0 ? `${total} pcs` : null,
+                    ].filter(Boolean).join(" · ") || category}
+                    height="h-[360px] md:h-[460px]"
+                  />
+                  {artworkPreviewUrl ? (
+                    <p className="text-xs font-body text-forest-900/55 px-1">
+                      This is a guide, not the final artwork — our designer sets the exact size and position before printing.
+                    </p>
+                  ) : (
+                    <p className="text-xs font-body text-forest-900/55 px-1">
+                      Upload your artwork below and it appears on the product here.
+                    </p>
+                  )}
+
+                  {/* What the choices add up to, kept next to the picture they describe. */}
+                  <div className="rounded-lg border border-forest-900/10 divide-y divide-forest-900/10">
+                    <dl className="px-4 py-3 space-y-1.5 text-sm font-body">
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-forest-900/55">Pieces</dt>
+                        <dd className="text-forest-900 font-medium">{total || "—"}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-forest-900/55">Main colour</dt>
+                        <dd className="flex items-center gap-2 text-forest-900">
+                          <span className="w-4 h-4 rounded-full border border-forest-900/15" style={{ backgroundColor: colorValue }} />
+                          {colorValue}
+                        </dd>
+                      </div>
+                      {secondaryColor && (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-forest-900/55">Secondary</dt>
+                          <dd className="flex items-center gap-2 text-forest-900">
+                            <span className="w-4 h-4 rounded-full border border-forest-900/15" style={{ backgroundColor: secondaryColor }} />
+                            {secondaryColor}
+                          </dd>
                         </div>
-                      }
-                    >
-                      <Product3DPreview
-                        product={selectedProduct ?? "T-Shirt"}
-                        collar={collarValue}
-                        color={colorValue}
-                        size={Object.keys(cleanSizes(sizes))[0] ?? sizeList[0] ?? "M"}
-                      />
-                    </Suspense>
-                  </div>
-                  <div className="absolute top-3 left-3 bg-white/85 backdrop-blur px-3 py-1.5 rounded-md pointer-events-none">
-                    <p className="text-xs font-body font-medium text-forest-900">{selectedProduct}</p>
-                    {wearable && (
-                      <p className="text-[11px] font-body text-forest-900/60">
-                        {isGarment(selectedProduct) ? `${collarValue} · ` : ""}{total > 0 ? `${total} pcs` : "No quantity yet"}
-                      </p>
+                      )}
+                      {wearable && (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-forest-900/55">Cut</dt>
+                          <dd className="text-forest-900 text-right">
+                            {[isGarment(selectedProduct) ? collarValue : null, sleeveValue, fabricValue].filter(Boolean).join(" · ") || "—"}
+                          </dd>
+                        </div>
+                      )}
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-forest-900/55">Artwork</dt>
+                        <dd className="text-forest-900">{artwork.length ? `${artwork.length} file${artwork.length > 1 ? "s" : ""}` : "none yet"}</dd>
+                      </div>
+                    </dl>
+                    {total > 0 && (
+                      <div className="px-4 py-3">
+                        <PriceEstimateBox studioProductId={selectedOption?.id} totalQty={total} compact />
+                      </div>
                     )}
-                  </div>
-                  <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-white/85 backdrop-blur px-2.5 py-1 rounded-md pointer-events-none">
-                    <Move3D className="w-3.5 h-3.5 text-forest-900/60" />
-                    <span className="text-[11px] font-body text-forest-900/60">Drag to rotate · scroll to zoom</span>
                   </div>
                 </div>
 
                 <div className="space-y-6">
-                  {/* Colour */}
-                  <div>
-                    <label className="text-sm font-body font-medium text-forest-900 mb-2 flex items-center gap-2"><Palette className="w-4 h-4" /> Main colour</label>
-                    {options.colors.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {options.colors.map((c) => (
-                          <button key={c} onClick={() => setColor(c)} type="button"
-                            aria-label={`Main colour ${c}`}
-                            className={`w-8 h-8 rounded-full border-2 transition-all ${colorValue === c ? "border-forest-900 scale-110" : "border-transparent"}`}
-                            style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                    ) : (
-                      <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(colorValue) ? colorValue : "#1d4ed8"}
-                        onChange={(e) => setColor(e.target.value)} aria-label="Main colour"
-                        className="h-10 w-20 rounded-md border border-forest-900/15 bg-white" />
-                    )}
-                  </div>
-
-                  {/* Secondary colour */}
-                  <div>
-                    <label className={LABEL} htmlFor="d-second">Secondary colour (optional)</label>
-                    {options.colors.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => setSecondaryColor("")}
-                          className={`px-3 py-1.5 rounded-md text-xs font-body ${secondaryColor === "" ? "bg-forest-900 text-white" : "bg-off-white text-forest-900/70"}`}>
-                          None
-                        </button>
-                        {options.colors.map((c) => (
-                          <button key={c} type="button" onClick={() => setSecondaryColor(c)}
-                            aria-label={`Secondary colour ${c}`}
-                            className={`w-8 h-8 rounded-full border-2 transition-all ${secondaryColor === c ? "border-forest-900 scale-110" : "border-transparent"}`}
-                            style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                    ) : (
-                      <input id="d-second" type="color" value={/^#[0-9a-fA-F]{6}$/.test(secondaryColor) ? secondaryColor : "#ffffff"}
-                        onChange={(e) => setSecondaryColor(e.target.value)}
-                        className="h-10 w-20 rounded-md border border-forest-900/15 bg-white" />
-                    )}
-                  </div>
+                  <ColorPicker
+                    label="Main colour" labelClassName={LABEL}
+                    value={colorValue} onChange={setColor} swatches={options.colors}
+                    hint="Tap a stock colour, or pick your own club colour with the wheel."
+                  />
+                  <ColorPicker
+                    label="Secondary colour (optional)" labelClassName={LABEL}
+                    value={secondaryColor} onChange={setSecondaryColor} swatches={options.colors}
+                    clearable
+                    hint="Used for the collar, cuffs and hem — you can see it change on the model."
+                  />
 
                   {/* Collar + sleeve apply to garments only. */}
                   {wearable && options.collars.length > 0 && (
                     <div>
-                      <label className="text-sm font-body font-medium text-forest-900 mb-2 flex items-center gap-2"><Type className="w-4 h-4" /> Collar type</label>
+                      <label className={LABEL}>Collar type</label>
                       <div className="flex flex-wrap gap-2">
                         {options.collars.map((c) => (
                           <button key={c} type="button" onClick={() => setCollar(c)}
@@ -563,7 +614,7 @@ export default function OnlineDesign() {
                   {/* Quantity — the size matrix for apparel, one quantity for everything else. */}
                   {wearable && sizeList.length > 1 ? (
                     <div>
-                      <label className="text-sm font-body font-medium text-forest-900 mb-2 flex items-center gap-2"><Ruler className="w-4 h-4" /> Size breakdown</label>
+                      <label className={LABEL}>Size breakdown</label>
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                         {sizeList.map((s) => (
                           <label key={s} className="text-center">
@@ -587,7 +638,7 @@ export default function OnlineDesign() {
                     </div>
                   )}
 
-                  <div className="rounded-md bg-off-white px-4 py-3">
+                  <div className="rounded-md bg-off-white px-4 py-3" id="d-total">
                     <p className="text-sm font-body text-forest-900">
                       Total: <span className="font-medium text-teal-600">{total}</span> pieces
                     </p>
@@ -603,9 +654,6 @@ export default function OnlineDesign() {
                       </p>
                     )}
                   </div>
-
-                  {/* 06 §5 p.3 — the estimated price of what has been entered so far. */}
-                  <PriceEstimateBox studioProductId={selectedOption?.id} totalQty={total} compact />
 
                   <div>
                     <label className={LABEL} htmlFor="d-concept">Design concept / theme</label>
@@ -665,6 +713,61 @@ export default function OnlineDesign() {
                     )}
                   </div>
 
+                  {/* Artwork — on the same screen as the colours, because one is judged against
+                      the other (user, 31-Oct: "step customize dan upload design harusnya jadi satu"). */}
+                  <div className="pt-2 border-t border-forest-900/10">
+                    <h3 className="text-sm font-body font-medium text-forest-900 mb-1 flex items-center gap-2">
+                      <Upload className="w-4 h-4" /> Your artwork
+                    </h3>
+                    <p className="text-xs font-body text-forest-900/55 mb-3">
+                      PNG, JPG or SVG appears on the model straight away. PDF, AI and EPS are the print files —
+                      upload them too and our designer works from those.
+                    </p>
+                    <FileUploadBox
+                      files={artwork}
+                      onChange={setArtwork}
+                      showRoles={false}
+                      onInteract={track.start}
+                      hint="Drop your artwork here or click to browse"
+                    />
+
+                    <div className="mt-5">
+                      <h4 className="text-sm font-body font-medium text-forest-900 mb-2">Where should it be printed?</h4>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {options.placements.map((position) => {
+                          const on = placements.some((p) => p.position === position);
+                          return (
+                            <button key={position} type="button" onClick={() => togglePlacement(position)}
+                              aria-pressed={on}
+                              className={`px-3 py-1.5 rounded-md text-sm font-body transition-colors ${on ? "bg-forest-900 text-white" : "bg-off-white text-forest-900/70 hover:bg-forest-900/10"}`}>
+                              {pretty(position)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {placements.length > 0 && (
+                        <div className="space-y-2">
+                          {placements.map((p) => (
+                            <div key={p.position} className="grid grid-cols-1 sm:grid-cols-[0.7fr_1fr_1.3fr] gap-2 items-center">
+                              <span className="text-sm font-body text-forest-900">{pretty(p.position)}</span>
+                              <select className={FIELD} aria-label={`Artwork file for ${pretty(p.position)}`}
+                                value={p.artwork_index ?? ""}
+                                onChange={(e) => setPlacementField(p.position, "artwork_index", e.target.value)}>
+                                <option value="">Any uploaded file</option>
+                                {artwork.map((f, i) => (
+                                  <option key={f.path} value={i}>{f.original_name}</option>
+                                ))}
+                              </select>
+                              <input className={FIELD} aria-label={`Note for ${pretty(p.position)}`}
+                                value={p.note ?? ""} onChange={(e) => setPlacementField(p.position, "note", e.target.value)}
+                                placeholder="Size / position note (optional)" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <label className={LABEL} htmlFor="d-notes">Notes for the designer</label>
                     <textarea id="d-notes" rows={3} className={`${FIELD} resize-none`} value={designNotes} onChange={(e) => setDesignNotes(e.target.value)} placeholder="Sponsor logos, fonts, reference links…" />
@@ -682,62 +785,8 @@ export default function OnlineDesign() {
             </div>
           )}
 
-          {/* Step 3: Upload Design */}
+          {/* Step 3: Review and submit */}
           {step === 3 && (
-            <div>
-              <h2 className="font-display text-2xl text-forest-900 uppercase mb-6">Upload Your Design</h2>
-              <FileUploadBox
-                files={artwork}
-                onChange={setArtwork}
-                showRoles={false}
-                onInteract={track.start}
-                hint="Drop your artwork here or click to browse"
-              />
-
-              <div className="mt-8">
-                <h3 className="text-forest-900 text-base font-body font-medium mb-3">Where should the artwork go?</h3>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {options.placements.map((position) => {
-                    const on = placements.some((p) => p.position === position);
-                    return (
-                      <button key={position} type="button" onClick={() => togglePlacement(position)}
-                        className={`px-3 py-1.5 rounded-md text-sm font-body transition-colors ${on ? "bg-forest-900 text-white" : "bg-off-white text-forest-900/70"}`}>
-                        {pretty(position)}
-                      </button>
-                    );
-                  })}
-                </div>
-                {placements.length > 0 && (
-                  <div className="space-y-2">
-                    {placements.map((p) => (
-                      <div key={p.position} className="grid grid-cols-1 sm:grid-cols-[0.7fr_1fr_1.3fr] gap-2 items-center">
-                        <span className="text-sm font-body text-forest-900">{pretty(p.position)}</span>
-                        <select className={FIELD} aria-label={`Artwork file for ${pretty(p.position)}`}
-                          value={p.artwork_index ?? ""}
-                          onChange={(e) => setPlacementField(p.position, "artwork_index", e.target.value)}>
-                          <option value="">Any uploaded file</option>
-                          {artwork.map((f, i) => (
-                            <option key={f.path} value={i}>{f.original_name}</option>
-                          ))}
-                        </select>
-                        <input className={FIELD} aria-label={`Note for ${pretty(p.position)}`}
-                          value={p.note ?? ""} onChange={(e) => setPlacementField(p.position, "note", e.target.value)}
-                          placeholder="Size / position note (optional)" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-8 flex justify-between">
-                <button onClick={() => setStep(2)} className="border border-forest-900/20 text-forest-900 px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-forest-900/5 transition-colors flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Back</button>
-                <button onClick={() => setStep(4)} className="bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors flex items-center gap-2">Next <ChevronRight className="w-4 h-4" /></button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Submit */}
-          {step === 4 && (
             <div>
               {!submitted ? (
                 <>
@@ -822,7 +871,7 @@ export default function OnlineDesign() {
                   </div>
 
                   <div className="mt-8 flex justify-between">
-                    <button onClick={() => setStep(3)} className="border border-forest-900/20 text-forest-900 px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-forest-900/5 transition-colors flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Back</button>
+                    <button onClick={() => setStep(2)} className="border border-forest-900/20 text-forest-900 px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-forest-900/5 transition-colors flex items-center gap-2"><ChevronLeft className="w-4 h-4" /> Back</button>
                     <button onClick={handleSubmit} disabled={pending} className="bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
                       {pending ? "Submitting…" : "Submit for Quotation"}
                     </button>

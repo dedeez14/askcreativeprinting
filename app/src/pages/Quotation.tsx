@@ -4,6 +4,10 @@ import { Send, Check, MessageCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import SEOHead from "../components/SEOHead";
 import FileUploadBox from "../components/FileUploadBox";
+import StudioPreview from "../components/StudioPreview";
+import ColorPicker from "../components/ColorPicker";
+import { useDesignToolConfig } from "../hooks/useDesignSubmission";
+import { previewProductFor } from "../lib/previewProduct";
 import { useEnquiry } from "../hooks/useEnquiry";
 import { enquiryToQuoteRequest } from "../lib/legacyQuote";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
@@ -126,11 +130,20 @@ export default function Quotation() {
   const [email, setEmail] = useState("");
 
   // Product
+  /*
+   * The same admin-editable vocabulary the Online Design studio uses (colours, collars, sleeves,
+   * fabrics). It is optional here: if the ERP is unreachable the form still works, the colour
+   * picker simply offers the wheel instead of stock swatches.
+   */
+  const { options: studioOptions } = useDesignToolConfig();
+
   const [category, setCategory] = useState(PRODUCT_GROUPS[0].category);
   const [productType, setProductType] = useState("");
   const [jobType, setJobType] = useState<ErpJobType>(PRODUCT_GROUPS[0].jobType);
 
   // Design
+  const previewModel = useMemo(() => previewProductFor(productType), [productType]);
+
   const [design, setDesign] = useState({
     design_concept: "",
     main_color: "",
@@ -351,6 +364,16 @@ export default function Quotation() {
                   </div>
                 </div>
 
+                {/*
+                  Product, quantity and design sit in one band with a single sticky model beside
+                  them. One canvas, not three: the customer sees the model from the moment they
+                  pick a product type and it keeps following them down through the design fields
+                  (user, 31-Oct-2026: "pada saat pilih product category dan product type juga
+                  tampil model").
+                */}
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(260px,320px)] gap-6 lg:gap-8 items-start">
+                  <div className="space-y-6 min-w-0">
+
                 {/* ── What you need ── */}
                 <div>
                   <h2 className={SECTION}>What you need</h2>
@@ -457,33 +480,64 @@ export default function Quotation() {
                   </div>
                 </div>
 
-                {/* ── Design details ── */}
+                {/* ── Design details ──
+                    The model sits beside these fields and follows every one of them, so a customer
+                    can see what they are describing instead of imagining it (user, 31-Oct-2026:
+                    "input input lain yang bisa merubah model harusnya model disesuaikan pada form
+                    input yang di pilih"). */}
                 <div>
                   <h2 className={SECTION}>Design details</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 content-start">
                     <div className="sm:col-span-2">
                       <label className={LABEL} htmlFor="q-concept">Design concept / theme</label>
                       <input id="q-concept" className={FIELD} value={design.design_concept} onChange={(e) => setDesign({ ...design, design_concept: e.target.value })} placeholder="e.g. School sports day 2027" />
                     </div>
-                    <div>
-                      <label className={LABEL} htmlFor="q-main-color">Main colour</label>
-                      <input id="q-main-color" className={FIELD} value={design.main_color} onChange={(e) => setDesign({ ...design, main_color: e.target.value })} placeholder="e.g. Navy blue" />
+                    <div className="sm:col-span-2">
+                      <ColorPicker
+                        label="Main colour" labelClassName={LABEL}
+                        value={design.main_color}
+                        onChange={(hex) => setDesign({ ...design, main_color: hex })}
+                        swatches={studioOptions?.colors ?? []}
+                        clearable
+                        hint="Pick a colour and the model takes it straight away."
+                      />
                     </div>
-                    <div>
-                      <label className={LABEL} htmlFor="q-second-color">Secondary colour</label>
-                      <input id="q-second-color" className={FIELD} value={design.secondary_color} onChange={(e) => setDesign({ ...design, secondary_color: e.target.value })} placeholder="e.g. White" />
+                    <div className="sm:col-span-2">
+                      <ColorPicker
+                        label="Secondary colour" labelClassName={LABEL}
+                        value={design.secondary_color}
+                        onChange={(hex) => setDesign({ ...design, secondary_color: hex })}
+                        swatches={studioOptions?.colors ?? []}
+                        clearable
+                        hint="The collar, cuffs and hem use this one."
+                      />
                     </div>
                     <div>
                       <label className={LABEL} htmlFor="q-collar">Collar type</label>
-                      <input id="q-collar" className={FIELD} value={design.collar_type} onChange={(e) => setDesign({ ...design, collar_type: e.target.value })} placeholder="e.g. Round neck" />
+                      <select id="q-collar" className={FIELD} value={design.collar_type}
+                        onChange={(e) => setDesign({ ...design, collar_type: e.target.value })}>
+                        <option value="">Not sure / let the designer advise</option>
+                        {(studioOptions?.collars ?? ["Round Neck", "V-Neck", "Polo Collar", "Mandarin Collar", "Rib Collar", "Hoodie"])
+                          .map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
                     </div>
                     <div>
                       <label className={LABEL} htmlFor="q-fabric">Fabric</label>
-                      <input id="q-fabric" className={FIELD} value={design.fabric_type} onChange={(e) => setDesign({ ...design, fabric_type: e.target.value })} placeholder="e.g. Microfiber" />
+                      <select id="q-fabric" className={FIELD} value={design.fabric_type}
+                        onChange={(e) => setDesign({ ...design, fabric_type: e.target.value })}>
+                        <option value="">Not sure / let the designer advise</option>
+                        {(studioOptions?.fabrics ?? ["Cotton", "Dry Fit", "Microfiber", "Fleece", "Satin"])
+                          .map((f) => <option key={f} value={f}>{f}</option>)}
+                      </select>
                     </div>
                     <div>
                       <label className={LABEL} htmlFor="q-sleeve">Sleeve type</label>
-                      <input id="q-sleeve" className={FIELD} value={design.sleeve_type} onChange={(e) => setDesign({ ...design, sleeve_type: e.target.value })} placeholder="e.g. Short sleeve" />
+                      <select id="q-sleeve" className={FIELD} value={design.sleeve_type}
+                        onChange={(e) => setDesign({ ...design, sleeve_type: e.target.value })}>
+                        <option value="">Not sure / let the designer advise</option>
+                        {(studioOptions?.sleeves ?? ["Sleeveless", "Short Sleeve", "3/4 Sleeve", "Long Sleeve"])
+                          .map((sl) => <option key={sl} value={sl}>{sl}</option>)}
+                      </select>
                     </div>
                     <div>
                       <label className={LABEL} htmlFor="q-namenumber">Names / numbers needed</label>
@@ -497,6 +551,36 @@ export default function Quotation() {
                       <label className={LABEL} htmlFor="q-design-notes">Notes for the designer</label>
                       <textarea id="q-design-notes" rows={3} className={`${FIELD} resize-none`} value={design.design_notes} onChange={(e) => setDesign({ ...design, design_notes: e.target.value })} placeholder="Logo placement, sponsor logos, fonts, anything the designer should know…" />
                     </div>
+                  </div>
+                </div>
+                  </div>
+
+                  {/* The model, following the product type and every design field beside it. */}
+                  <div className="lg:sticky lg:top-28 h-fit">
+                    {previewModel ? (
+                      <>
+                        <StudioPreview
+                          product={previewModel}
+                          collar={design.collar_type || undefined}
+                          color={design.main_color || undefined}
+                          secondaryColor={design.secondary_color || undefined}
+                          sleeve={design.sleeve_type || undefined}
+                          fabric={design.fabric_type || undefined}
+                          caption={productType || previewModel}
+                          sub={category}
+                          height="h-[260px] md:h-[300px]"
+                        />
+                        <p className="text-xs font-body text-forest-900/50 mt-2">
+                          A guide to what you are describing — the finished artwork comes from our designer.
+                        </p>
+                      </>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-forest-900/15 bg-off-white h-[260px] md:h-[300px] flex items-center justify-center px-6 text-center">
+                        <p className="text-sm font-body text-forest-900/50">
+                          Choose a product type above and it appears here.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
