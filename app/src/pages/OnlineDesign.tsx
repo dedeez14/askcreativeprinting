@@ -476,7 +476,7 @@ export default function OnlineDesign() {
                   <div className="rounded-xl border border-dashed border-forest-900/15 bg-off-white h-[340px] md:h-[400px] flex flex-col items-center justify-center gap-3 px-8 text-center">
                     <Shirt className="w-10 h-10 text-forest-900/20" />
                     <p className="text-sm font-body text-forest-900/50">
-                      Pick a product and it appears here — turn it, recolour it, and put your artwork on it.
+                      Pick a product and it appears here — front and back, in your colours, with your artwork on it.
                     </p>
                   </div>
                 )}

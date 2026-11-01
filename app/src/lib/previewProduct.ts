@@ -1,5 +1,5 @@
 /*
- * Which 3D model stands in for a product name.
+ * Which mockup stands in for a product name.
  *
  * The Get Quotation form and the Online Design studio call the same things by different names —
  * "Sublimation Jersey" there, "Football Jersey" in the model set; "Banner / Bunting / Backdrop"
@@ -11,7 +11,7 @@
  * `null` is returned only for things that have no sensible 3D stand-in.
  */
 
-/** Model keys Product3DPreview knows how to build. */
+/** Product keys ProductMockup knows how to draw. */
 const MODELS = [
   "T-Shirt", "Polo Shirt", "Corporate Shirt", "Hoodie", "Windbreaker",
   "Football Jersey", "Basketball Jersey", "Baseball Jersey", "Running Singlet",
