@@ -73,18 +73,24 @@ type GarmentSpec = {
   ribbedHem?: boolean;
   /** Where the artwork goes on the front: chest centre, or the wearer's left chest (a logo). */
   frontPrint: "centre" | "logo";
+  /**
+   * The cut IS the product: a windbreaker or hoodie has long sleeves, a basketball jersey or a running
+   * singlet none, whatever the sleeve list says. The studio form fills the sleeve with the first option
+   * before the customer chooses (a windbreaker showed short sleeves on the live site, 1-Nov-2026).
+   */
+  fixedSleeve?: boolean;
 };
 
 const GARMENTS: Partial<Record<PreviewModel, GarmentSpec>> = {
   "T-Shirt":           { sleeve: "short", neck: "round", hem: 86, frontPrint: "centre" },
   "Polo Shirt":        { sleeve: "short", neck: "polo", hem: 86, placket: "half", frontPrint: "logo" },
   "Corporate Shirt":   { sleeve: "long", neck: "shirt", hem: 84, placket: "full", pocket: "chest", frontPrint: "logo" },
-  "Hoodie":            { sleeve: "long", neck: "hood", hem: 88, pocket: "kangaroo", ribbedHem: true, frontPrint: "centre" },
-  "Windbreaker":       { sleeve: "long", neck: "stand", hem: 90, placket: "zip", ribbedHem: true, frontPrint: "logo" },
+  "Hoodie":            { sleeve: "long", neck: "hood", hem: 88, pocket: "kangaroo", ribbedHem: true, frontPrint: "centre", fixedSleeve: true },
+  "Windbreaker":       { sleeve: "long", neck: "stand", hem: 90, placket: "zip", ribbedHem: true, frontPrint: "logo", fixedSleeve: true },
   "Football Jersey":   { sleeve: "short", neck: "v", hem: 84, sidePanels: true, frontPrint: "centre" },
-  "Basketball Jersey": { sleeve: "sleeveless", neck: "v", hem: 80, sidePanels: true, frontPrint: "centre" },
+  "Basketball Jersey": { sleeve: "sleeveless", neck: "v", hem: 80, sidePanels: true, frontPrint: "centre", fixedSleeve: true },
   "Baseball Jersey":   { sleeve: "short", neck: "v", hem: 86, placket: "full", frontPrint: "centre" },
-  "Running Singlet":   { sleeve: "sleeveless", neck: "round", hem: 76, frontPrint: "centre" },
+  "Running Singlet":   { sleeve: "sleeveless", neck: "round", hem: 76, frontPrint: "centre", fixedSleeve: true },
 };
 
 function sleeveFrom(choice: string | undefined, fallback: Sleeve): Sleeve {
@@ -574,7 +580,7 @@ export default function ProductMockup({
           <ellipse cx="200" cy={SHADOW[spec ? "garment" : model]} rx={spec ? 120 : 96} ry="8" fill="#000" opacity="0.10" style={{ filter: "blur(4px)" }} />
         )}
         {spec
-          ? <Garment spec={spec} sleeve={sleeveFrom(sleeve, spec.sleeve)} neck={neckFrom(collar, spec.neck)}
+          ? <Garment spec={spec} sleeve={spec.fixedSleeve ? spec.sleeve : sleeveFrom(sleeve, spec.sleeve)} neck={neckFrom(collar, spec.neck)}
               side={side} main={main} trim={trim} fabric={fabric} artworkUrl={artworkUrl} />
           : <OtherProduct model={model} main={main} trim={trim} artworkUrl={artworkUrl} />}
       </svg>
