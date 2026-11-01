@@ -555,6 +555,15 @@ function OtherProduct({ model, main, trim, artworkUrl }: { model: PreviewModel; 
   }
 }
 
+/**
+ * True when the product's neckline is part of the product (a hood, a stand collar, a shirt collar), so a
+ * collar label from the form would describe something the mockup does not show.
+ */
+export function hasOwnNeck(product: string): boolean {
+  const spec = GARMENTS[previewProductFor(product) ?? "T-Shirt"];
+  return !!spec && (spec.neck === "hood" || spec.neck === "stand" || spec.neck === "shirt");
+}
+
 /* ─────────────────────────── the mockup ─────────────────────────── */
 
 /** Where each product's ground shadow sits (its lowest point + a little). Bunting hangs: no shadow. */

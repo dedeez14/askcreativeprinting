@@ -13,6 +13,7 @@ import SEOHead from "../components/SEOHead";
 import FileUploadBox from "../components/FileUploadBox";
 import PriceEstimateBox from "../components/PriceEstimateBox";
 import StudioPreview from "../components/StudioPreview";
+import { hasOwnNeck } from "../components/ProductMockup";
 import ProductGlyph from "../components/ProductGlyph";
 import ColorPicker from "../components/ColorPicker";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
@@ -470,7 +471,7 @@ export default function OnlineDesign() {
                     secondaryColor={secondaryColor} sleeve={sleeveValue} fabric={fabricValue}
                     size={Object.keys(cleanSizes(sizes))[0] ?? sizeList[0] ?? "M"}
                     caption={selectedProduct}
-                    sub={wearable && isGarment(selectedProduct) ? collarValue : category}
+                    sub={wearable && isGarment(selectedProduct) && !hasOwnNeck(selectedProduct) ? collarValue : category}
                   />
                 ) : (
                   <div className="rounded-xl border border-dashed border-forest-900/15 bg-off-white h-[340px] md:h-[400px] flex flex-col items-center justify-center gap-3 px-8 text-center">
@@ -508,7 +509,7 @@ export default function OnlineDesign() {
                     autoRotate={!artworkPreviewUrl}
                     caption={selectedProduct ?? undefined}
                     sub={[
-                      wearable && isGarment(selectedProduct) ? collarValue : null,
+                      wearable && isGarment(selectedProduct) && !hasOwnNeck(selectedProduct ?? "") ? collarValue : null,
                       total > 0 ? `${total} pcs` : null,
                     ].filter(Boolean).join(" · ") || category}
                     height="h-[360px] md:h-[460px]"
