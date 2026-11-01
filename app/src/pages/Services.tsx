@@ -75,7 +75,7 @@ export default function Services() {
                 className="group block bg-white rounded-lg overflow-hidden border border-forest-900/10 hover:border-forest-900/30 hover:shadow-lg transition-all duration-300"
               >
                 <div className="overflow-hidden">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={service.image}
                     alt={service.title}
                     className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"

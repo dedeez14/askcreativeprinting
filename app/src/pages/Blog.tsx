@@ -66,7 +66,7 @@ export default function Blog() {
               const cardInner = (
                 <>
                   <div className="overflow-hidden rounded-t-lg">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={post.image}
                       alt={post.title}
                       className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"

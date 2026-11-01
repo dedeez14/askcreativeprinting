@@ -246,6 +246,8 @@ export default function Home() {
         {/* Background Image - TS55-1800 Printer Fleet */}
         <div className="absolute inset-0 w-full h-full">
           <img
+            fetchPriority="high"
+            decoding="async"
             src="/images/real-hero-printers.jpg"
             alt="ASK Creative TS55-1800 sublimation printer fleet in Kota Kinabalu"
             className="w-full h-full object-cover"
@@ -368,6 +370,8 @@ export default function Home() {
             </div>
             <div data-animate>
               <img
+                loading="lazy"
+                decoding="async"
                 src="/images/real-building.jpg"
                 alt="ASK Creative headquarters at Kepayan Perdana, Kota Kinabalu"
                 className="w-full rounded-lg object-cover aspect-[4/3]"
@@ -438,6 +442,8 @@ export default function Home() {
             </div>
             <div data-animate>
               <img
+                loading="lazy"
+                decoding="async"
                 src="/images/real-designer.jpg"
                 alt="ASK Creative designer working on custom jersey designs"
                 className="w-full rounded-lg object-cover aspect-[4/3]"
@@ -465,6 +471,8 @@ export default function Home() {
             {prodImages.map((img, i) => (
               <div key={i} className="overflow-hidden rounded-lg">
                 <img
+                loading="lazy"
+                decoding="async"
                   src={img.src}
                   alt={img.alt}
                   className="w-full aspect-[4/3] object-cover hover:scale-105 transition-transform duration-500"
@@ -496,6 +504,8 @@ export default function Home() {
               <div key={i} className="group cursor-pointer">
                 <div className="overflow-hidden rounded-lg relative">
                   <img
+                loading="lazy"
+                decoding="async"
                     src={item.image}
                     alt={item.title}
                     className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-500"

@@ -99,7 +99,7 @@ export default function Portfolio() {
             {filtered.map((item, i) => (
               <div key={i} className="group cursor-pointer">
                 <div className="overflow-hidden rounded-lg relative">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={item.image}
                     alt={item.title}
                     className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-500"
