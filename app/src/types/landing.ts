@@ -1,3 +1,13 @@
+/** 06 §15 p.4 — GET /settings `showroom` (admin-editable in the ERP). Absent on an older ERP. */
+export interface LandingShowroom {
+  enabled: boolean;
+  title: string | null;
+  address: string | null;
+  opening_hours: Array<{ day: string; hours: string }> | null;
+  map_url: string | null;
+  note: string | null;
+}
+
 export interface LandingSettings {
   site_name: string;
   site_tagline: string;
@@ -33,6 +43,7 @@ export interface LandingSettings {
   production_images: Array<{ src: string; alt: string }>;
   contact_subjects: string[];
   operating_hours: Array<{ day: string; hours: string }>;
+  showroom?: LandingShowroom | null;
   footer_links: Array<{ title: string; links: Array<{ label: string; url: string }> }>;
   section_labels?: Record<string, string>;
   visi_misi: {

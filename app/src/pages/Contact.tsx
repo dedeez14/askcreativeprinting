@@ -7,6 +7,7 @@ import SEOHead from "../components/SEOHead";
 import { useContactSubmission } from "../hooks/useContactSubmission";
 import { useFormTracking } from "../hooks/useFormTracking";
 import { useSettings } from "../hooks/useSettings";
+import { useSalesWhatsApp } from "../hooks/useSalesWhatsApp";
 
 const FALLBACK_SALES_TEAM = [
   { name: "Mrs. Dayang", phone: "60102174774" },
@@ -43,6 +44,25 @@ export default function Contact() {
   const officeAddress = settings?.contact_address || "ASK Creative, No A6-1, Ground Floor, Block A, Kepayan Perdana, 88200 Kota Kinabalu, Sabah, Malaysia";
   const subjects = (settings?.contact_subjects && settings.contact_subjects.length > 0) ? settings.contact_subjects : FALLBACK_SUBJECTS;
   const operatingHours = (settings?.operating_hours && settings.operating_hours.length > 0) ? settings.operating_hours : FALLBACK_HOURS;
+  const sales = useSalesWhatsApp();
+
+  /*
+   * 06 §15 p.4 — showroom information. settings.showroom (ERP, admin-editable) wins field by field; where the
+   * ERP has none (older deployment) or leaves a field empty, the office address and operating hours stand in.
+   * The block is hidden only when the admin switched it off (enabled === false).
+   */
+  const showroom = settings?.showroom;
+  const showShowroom = showroom?.enabled !== false;
+  const showroomTitle = showroom?.title?.trim() || "Office & Showroom";
+  const showroomAddress = showroom?.address?.trim() || officeAddress;
+  const showroomHours = showroom?.opening_hours && showroom.opening_hours.length > 0 ? showroom.opening_hours : operatingHours;
+  const showroomNote = showroom?.note?.trim() || "";
+  const hasCoords = typeof settings?.company_lat === "number" && typeof settings?.company_lng === "number";
+  const showroomMapUrl =
+    showroom?.map_url?.trim() ||
+    (hasCoords
+      ? `https://www.google.com/maps/search/?api=1&query=${settings!.company_lat},${settings!.company_lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(showroomAddress)}`);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -264,6 +284,56 @@ export default function Contact() {
           </div>
         </div>
       </section>
+
+      {/* Showroom (06 §15 p.4) */}
+      {showShowroom && (
+        <section className="bg-[#0d1f16] py-14 md:py-20" data-showroom>
+          <div className="max-w-[1280px] mx-auto px-5 md:px-10 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            <div>
+              <p className="text-[#d7ff00] text-xs font-body font-medium uppercase tracking-[0.1em] mb-3">{showroomTitle}</p>
+              <h2 className="font-display text-3xl md:text-4xl text-white uppercase leading-[0.95] mb-4">Visit Our Showroom</h2>
+              <p className="text-white/60 text-base font-body max-w-[520px]">
+                See fabrics, finishes and sample garments in person and talk through your order with our team.
+              </p>
+              {showroomNote && <p className="text-white/80 text-sm font-body mt-4 max-w-[520px]">{showroomNote}</p>}
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-lg p-6 md:p-8">
+              <div className="flex items-start gap-3 mb-5">
+                <MapPin className="w-4 h-4 text-[#d7ff00] shrink-0 mt-1" />
+                <p className="text-white/80 text-sm font-body leading-relaxed">{showroomAddress}</p>
+              </div>
+              <div className="flex items-start gap-3 mb-6">
+                <Clock className="w-4 h-4 text-[#d7ff00] shrink-0 mt-1" />
+                <div className="text-white/70 text-sm font-body space-y-1">
+                  {showroomHours.map((h, i) => (
+                    <p key={i}>{h.day}: {h.hours}</p>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <a
+                  href={showroomMapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors text-center flex items-center justify-center gap-2"
+                >
+                  <MapPin className="w-4 h-4" />
+                  Get directions
+                </a>
+                <a
+                  href={sales.link("Hi ASK Creative, I would like to visit your showroom. What time is best to come?")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="border border-white/30 text-white px-6 py-3 rounded-md text-sm font-body font-medium hover:border-[#d7ff00] hover:text-[#d7ff00] transition-colors text-center flex items-center justify-center gap-2"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  WhatsApp us before you visit
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Map */}
       <section className="h-[400px] w-full bg-off-white">
