@@ -64,7 +64,7 @@ const PRODUCT_GROUPS: Array<{ category: string; types: string[]; jobType: ErpJob
   },
 ];
 
-/* App\Support\JobTypes::CATALOGUE — the only values the ERP accepts. */
+/* Fallback for an ERP without GET /settings → job_types (06 B4: the ERP Job Type master is the list). */
 const JOB_TYPES: Array<{ value: ErpJobType; label: string }> = [
   { value: "SUBLIMATION", label: "Sublimation" },
   { value: "BANNER", label: "Banner" },
@@ -402,7 +402,7 @@ export default function Quotation() {
                     <div className="sm:col-span-2">
                       <label className={LABEL} htmlFor="q-jobtype">Printing / job type *</label>
                       <select id="q-jobtype" className={FIELD} value={jobType} onChange={(e) => setJobType(e.target.value as ErpJobType)} required>
-                        {JOB_TYPES.map((j) => (
+                        {(settings?.job_types?.length ? settings.job_types : JOB_TYPES).map((j) => (
                           <option key={j.value} value={j.value}>{j.label}</option>
                         ))}
                       </select>

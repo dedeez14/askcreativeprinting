@@ -44,6 +44,8 @@ export interface LandingSettings {
   contact_subjects: string[];
   operating_hours: Array<{ day: string; hours: string }>;
   showroom?: LandingShowroom | null;
+  /** 06 B4 — the ERP Job Type master's website rows (absent on an older ERP: the form keeps its own list). */
+  job_types?: Array<{ value: string; label: string }>;
   footer_links: Array<{ title: string; links: Array<{ label: string; url: string }> }>;
   section_labels?: Record<string, string>;
   visi_misi: {
@@ -258,7 +260,8 @@ export interface LandingProduct {
 // App\Http\Requests\Api\Landing\StoreEnquiryRequest — do not invent others.
 
 /** App\Support\JobTypes::CATALOGUE — the only job types the ERP accepts from the website. */
-export type ErpJobType = 'SUBLIMATION' | 'BANNER' | 'DTF_HEATPRESS' | 'DESIGN_ONLY' | 'OTHER';
+// 06 B4 "… DESIGN_ONLY, and future types": the ERP may add codes (GET /settings → job_types), so any string is allowed.
+export type ErpJobType = 'SUBLIMATION' | 'BANNER' | 'DTF_HEATPRESS' | 'DESIGN_ONLY' | 'OTHER' | (string & {});
 
 /** 06 B4 "Priority should map to LOW/NORMAL/HIGH/URGENT". */
 export type EnquiryPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
