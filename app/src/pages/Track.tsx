@@ -33,7 +33,10 @@ export default function Track() {
   const [searchParams] = useSearchParams();
   const urlCode = searchParams.get("code") ?? "";
   const [code, setCode] = useState(urlCode);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    const first = extractToken(urlCode);
+    return ENQUIRY_V2 && first.length >= 6 ? first : null;
+  });
   const [error, setError] = useState<string | null>(null);
   const { data: settings } = useSettings();
   const sales = settings?.sales_team?.[0]?.phone || FALLBACK_SALES;
@@ -45,12 +48,8 @@ export default function Track() {
     if (autoRan.current || !urlCode) return;
     autoRan.current = true;
     const next = extractToken(urlCode);
-    if (next.length < 6) return;
-    if (!ENQUIRY_V2) {
-      window.location.href = portalUrl(next);
-      return;
-    }
-    setToken(next);
+    // With the status feed on, the lookup already started from the initial state above.
+    if (!ENQUIRY_V2 && next.length >= 6) window.location.href = portalUrl(next);
   }, [urlCode]);
 
   const handleSubmit = (e: React.FormEvent) => {
