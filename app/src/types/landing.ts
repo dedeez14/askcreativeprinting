@@ -356,6 +356,9 @@ export interface EnquiryResponse {
   status: string;
   assigned_sales: string | null;
   whatsapp_url?: string;
+  /** Stage 4+: a link the customer can open to follow the enquiry (ERP /p/track/{token}). */
+  tracking_url?: string | null;
+  tracking_token?: string | null;
   created_at: string;
 }
 
@@ -455,6 +458,9 @@ export interface DesignSubmissionPayload {
 
 export interface DesignSubmissionResponse {
   enquiry_no: string;
+  whatsapp_url?: string | null;
+  tracking_url?: string | null;
+  tracking_token?: string | null;
   total_qty: number;
   files: number;
   preview: boolean;
