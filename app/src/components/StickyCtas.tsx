@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
-import { MessageCircle, FileText } from "lucide-react";
+import { MessageCircle, FileText, Phone } from "lucide-react";
 import { useSalesWhatsApp } from "../hooks/useSalesWhatsApp";
+import { useSettings } from "../hooks/useSettings";
 
 /**
  * 06 §2 p.3 — "Sticky WhatsApp and quotation buttons should be visible on mobile" and §13 p.3
@@ -15,6 +16,9 @@ import { useSalesWhatsApp } from "../hooks/useSalesWhatsApp";
  */
 export default function StickyCtas() {
   const sales = useSalesWhatsApp();
+  // One-click call (06 §13 p.3) — the office line from settings, same fallback as the header and footer.
+  const { data: settings } = useSettings();
+  const callNumber = (settings?.contact_phone || "088 205 423").replace(/[^0-9+]/g, "");
 
   return (
     <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3" data-sticky-ctas>
@@ -28,6 +32,16 @@ export default function StickyCtas() {
         <FileText className="w-5 h-5" />
         Get Quotation
       </Link>
+
+      {/* Call — phone and tablet widths only (the header carries the number on desktop) */}
+      <a
+        href={`tel:${callNumber}`}
+        className="lg:hidden w-12 h-12 bg-forest-900 border border-[#d7ff00]/60 rounded-full flex items-center justify-center shadow-lg shadow-black/20 hover:brightness-110 transition"
+        aria-label="Call us"
+        data-sticky-call
+      >
+        <Phone className="w-5 h-5 text-[#d7ff00]" />
+      </a>
 
       <a
         href={sales.link("Hi ASK Creative, I would like to ask about custom printing.")}
