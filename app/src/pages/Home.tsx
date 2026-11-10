@@ -273,17 +273,19 @@ export default function Home() {
               Sublimation printing, custom apparel, embroidery, and premium gifts in Kota Kinabalu, Sabah.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                to="/online-design"
-                className="bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors w-full sm:w-auto text-center"
-              >
-                Start Your Custom Design
-              </Link>
+              {/* 06 §2 p.3 — hero CTAs in the brief's order: Get Instant Quotation, Design Your Apparel,
+                  WhatsApp Sales Team, View Services. */}
               <Link
                 to="/quotation"
+                className="bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors w-full sm:w-auto text-center"
+              >
+                Get Instant Quotation
+              </Link>
+              <Link
+                to="/online-design"
                 className="border border-[#d7ff00] text-[#d7ff00] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#d7ff00]/10 transition-colors w-full sm:w-auto text-center"
               >
-                Get Quotation
+                Design Your Apparel
               </Link>
               <a
                 href={sales.link("Hi ASK Creative, I would like to ask about custom printing.")}
