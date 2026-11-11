@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Upload, X, FileText, Loader2 } from "lucide-react";
+import { Upload, X, FileText, Loader2, CheckCircle2 } from "lucide-react";
+import { sameOriginMedia } from "../lib/media";
 import { toast } from "sonner";
 import {
   UPLOAD_ACCEPT,
@@ -48,6 +49,7 @@ export default function FileUploadBox({
 }: FileUploadBoxProps) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(0);
+  const [over, setOver] = useState(false);
 
   const handleFiles = async (picked: FileList | null) => {
     if (!picked || picked.length === 0) return;
@@ -93,18 +95,23 @@ export default function FileUploadBox({
 
   return (
     <div className="space-y-3">
+      {/* The box said "drop your artwork here" but had no drop handler — a dropped file opened in the
+          browser tab instead. It takes the drop now. */}
       <button
         type="button"
         onClick={() => input.current?.click()}
-        className="w-full border-2 border-dashed border-forest-900/15 hover:border-[#d7ff00] rounded-lg p-6 text-center transition-colors"
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); void handleFiles(e.dataTransfer.files); }}
+        className={`w-full border-2 border-dashed rounded-lg p-6 text-center transition-colors ${over ? "border-[#d7ff00] bg-[#d7ff00]/10" : "border-forest-900/20 bg-off-white/60 hover:border-[#b8d900]"}`}
       >
         {busy > 0 ? (
           <Loader2 className="w-6 h-6 text-forest-900/40 mx-auto mb-2 animate-spin" />
         ) : (
           <Upload className="w-6 h-6 text-forest-900/30 mx-auto mb-2" />
         )}
-        <p className="text-forest-900/70 text-sm font-body">
-          {busy > 0 ? `Uploading ${busy} file(s)…` : hint ?? "Upload your logo, artwork or design reference"}
+        <p className="text-forest-900 text-sm font-body font-medium">
+          {busy > 0 ? `Uploading ${busy} file${busy > 1 ? "s" : ""}…` : hint ?? "Upload your logo, artwork or design reference"}
         </p>
         <p className="text-forest-900/40 text-xs font-body mt-1">{UPLOAD_ACCEPT_LABEL}</p>
       </button>
@@ -123,21 +130,27 @@ export default function FileUploadBox({
           {files.map((file) => (
             <li
               key={file.path}
-              className="flex flex-wrap items-center gap-2 rounded-md border border-forest-900/10 bg-off-white px-3 py-2"
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-forest-900/10 bg-off-white pl-2 pr-1 py-1"
             >
-              <FileText className="w-4 h-4 text-forest-900/40 shrink-0" />
-              <span className="text-sm font-body text-forest-900 truncate max-w-[180px] sm:max-w-[260px]">
-                {file.original_name}
-              </span>
-              <span className="text-xs font-body text-forest-900/40">
-                {Math.max(1, Math.round(file.size / 1024))} KB
+              {/^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(file.mime ?? "") && file.url ? (
+                <img src={sameOriginMedia(file.url)} alt="" className="w-10 h-10 rounded object-contain bg-white border border-forest-900/10 shrink-0" />
+              ) : (
+                <span className="w-10 h-10 rounded bg-white border border-forest-900/10 flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5 text-forest-900/40" />
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-body text-forest-900 truncate">{file.original_name}</span>
+                <span className="flex items-center gap-1 text-xs font-body text-teal-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Uploaded · {Math.max(1, Math.round(file.size / 1024))} KB
+                </span>
               </span>
               {showRoles && (
                 <select
                   value={file.role}
                   onChange={(e) => setRole(file.path, e.target.value as UploadRole)}
                   aria-label={`What is ${file.original_name} for?`}
-                  className="ml-auto rounded-md border border-forest-900/15 bg-white px-2 py-1 text-xs font-body text-forest-900"
+                  className="order-last basis-full sm:order-none sm:basis-auto min-h-11 rounded-md border border-forest-900/15 bg-white px-2 text-base md:text-sm font-body text-forest-900"
                 >
                   {(Object.keys(ROLE_LABELS) as UploadRole[]).map((role) => (
                     <option key={role} value={role}>
@@ -150,9 +163,9 @@ export default function FileUploadBox({
                 type="button"
                 onClick={() => remove(file.path)}
                 aria-label={`Remove ${file.original_name}`}
-                className={`${showRoles ? "" : "ml-auto "}text-forest-900/40 hover:text-red-600 transition-colors`}
+                className="shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-md text-forest-900/50 hover:text-red-600 hover:bg-white transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </li>
           ))}

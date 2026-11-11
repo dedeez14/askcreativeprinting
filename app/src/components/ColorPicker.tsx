@@ -66,8 +66,8 @@ export default function ColorPicker({
         </label>
         {clearable && chosen !== "" && (
           <button type="button" onClick={() => onChange("")}
-            className="inline-flex items-center gap-1 text-xs font-body text-forest-900/50 hover:text-red-600 transition-colors">
-            <X className="w-3 h-3" /> Clear
+            className="-my-3 inline-flex min-h-11 items-center gap-1 px-2 text-sm font-body text-forest-900/60 hover:text-red-600 transition-colors">
+            <X className="w-4 h-4" /> Clear
           </button>
         )}
       </div>
@@ -78,7 +78,7 @@ export default function ColorPicker({
           return (
             <button key={c} type="button" onClick={() => onChange(c.toLowerCase())}
               aria-label={`${label}: ${c}`} aria-pressed={on} title={c}
-              className={`w-9 h-9 rounded-full border transition-transform hover:scale-105 flex items-center justify-center
+              className={`w-11 h-11 rounded-full border transition-transform hover:scale-105 flex items-center justify-center
                 ${on ? "border-forest-900 ring-2 ring-forest-900/15 scale-105" : "border-forest-900/15"}`}
               style={{ backgroundColor: c }}>
               {on && <Check className="w-4 h-4" strokeWidth={3} style={{ color: tickOn(c) }} />}
@@ -89,7 +89,7 @@ export default function ColorPicker({
         {/* The browser's colour wheel, behind a tile that shows what it currently holds. */}
         <button type="button" onClick={() => nativeRef.current?.click()}
           aria-label={`${label}: pick any colour`} title="Pick any colour"
-          className={`w-9 h-9 rounded-full border flex items-center justify-center transition-transform hover:scale-105
+          className={`w-11 h-11 rounded-full border flex items-center justify-center transition-transform hover:scale-105
             ${offList ? "border-forest-900 ring-2 ring-forest-900/15 scale-105" : "border-dashed border-forest-900/30"}`}
           style={offList ? { backgroundColor: chosen } : { background: "conic-gradient(#ef4444,#f59e0b,#d7ff00,#10b981,#06b6d4,#3b82f6,#8b5cf6,#ef4444)" }}>
           <Pipette className="w-4 h-4" style={{ color: offList ? tickOn(chosen) : "#0d1f16" }} />
@@ -100,7 +100,8 @@ export default function ColorPicker({
 
         <input id={`${id}-hex`} value={draft} onChange={(e) => { setDraft(e.target.value); commit(e.target.value); }}
           onBlur={() => setDraft(value)} placeholder="#1d4ed8" spellCheck={false} maxLength={7}
-          className="w-24 px-3 py-2 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body
+          aria-label={`${label}: colour code`}
+          className="w-28 h-11 px-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-base md:text-sm font-body
             placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500 [color-scheme:light]" />
       </div>
 
