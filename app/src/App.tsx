@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
@@ -8,7 +8,6 @@ import Services from "./pages/Services";
 import ServiceDetail from "./pages/ServiceDetail";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
-import OnlineDesign from "./pages/OnlineDesign";
 import Quotation from "./pages/Quotation";
 import Portfolio from "./pages/Portfolio";
 import Clients from "./pages/Clients";
@@ -21,6 +20,9 @@ import LegalPage from "./pages/LegalPage";
 import NotFound from "./pages/NotFound";
 import { trackPageView, initAnalytics } from "./lib/analytics";
 import { useSettings } from "./hooks/useSettings";
+
+// The design studio and its editor (fonts, patterns, PNG export) load only on /online-design.
+const OnlineDesign = lazy(() => import("./pages/OnlineDesign"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -55,7 +57,9 @@ function App() {
           <Route path="/services/:slug" element={<ServiceDetail />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:slug" element={<ProductDetail />} />
-          <Route path="/online-design" element={<OnlineDesign />} />
+          <Route path="/online-design" element={
+            <Suspense fallback={<div className="min-h-[60vh] bg-white" aria-busy="true" />}><OnlineDesign /></Suspense>
+          } />
           <Route path="/quotation" element={<Quotation />} />
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/clients" element={<Clients />} />
