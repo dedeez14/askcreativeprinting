@@ -34,6 +34,9 @@ const STATIC_PAGES = [
   { loc: '/faq', priority: 0.6, changefreq: 'monthly' },
   { loc: '/blog', priority: 0.7, changefreq: 'weekly' },
   { loc: '/contact', priority: 0.8, changefreq: 'monthly' },
+  { loc: '/privacy-policy', priority: 0.3, changefreq: 'yearly' },
+  { loc: '/terms-of-service', priority: 0.3, changefreq: 'yearly' },
+  { loc: '/data-deletion', priority: 0.3, changefreq: 'yearly' },
 ];
 
 const escapeXml = (s) =>
