@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Send, Check, MessageCircle, Plus, Trash2 } from "lucide-react";
+import OrderBar from "../components/OrderBar";
+import { sameOriginMedia } from "../lib/media";
 import { toast } from "sonner";
 import SEOHead from "../components/SEOHead";
 import FileUploadBox from "../components/FileUploadBox";
@@ -99,8 +101,11 @@ const FALLBACK_SALES_TEAM = [
   { name: "Ms. Fara", phone: "60102174750" },
 ];
 
+// 16px text below md: iOS Safari zooms the page into any field smaller than that.
 const FIELD =
-  "w-full px-4 py-3 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500 [color-scheme:light]";
+  "w-full min-h-11 px-4 py-2.5 rounded-md border border-forest-900/15 bg-white text-forest-900 text-base md:text-sm font-body placeholder:text-forest-900/40 focus:outline-none focus:border-teal-500 [color-scheme:light]";
+const SIZE_BOX =
+  "w-full h-11 px-2 rounded-md border border-forest-900/15 bg-white text-forest-900 text-base md:text-sm font-body text-center focus:outline-none focus:border-teal-500 [color-scheme:light]";
 const LABEL = "block text-xs font-body font-medium uppercase tracking-[0.08em] text-forest-900/60 mb-2";
 const SECTION = "font-display text-lg text-forest-900 uppercase mb-5 pt-2";
 
@@ -173,6 +178,11 @@ export default function Quotation() {
   // Files + remarks
   const [files, setFiles] = useState<UploadedFileWithRole[]>([]);
   const [notes, setNotes] = useState("");
+  /** The first uploaded image, drawn on the preview (a PDF/AI/EPS is for the designer, not the mockup). */
+  const artworkPreviewUrl = useMemo(() => {
+    const img = files.find((f) => /^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(f.mime ?? ""));
+    return sameOriginMedia(img?.url);
+  }, [files]);
   const [honeypot, setHoneypot] = useState("");
 
   const today = isoDate(new Date());
@@ -311,12 +321,12 @@ export default function Quotation() {
       />
 
       {/* Page Hero */}
-      <section className="bg-[#0d1f16] pt-32 md:pt-40 pb-16 md:pb-20">
+      <section className="bg-[#0d1f16] pt-10 pb-8 md:pt-16 md:pb-12 lg:pt-20 lg:pb-14">
         <div className="max-w-[1280px] mx-auto px-5 md:px-10 text-center">
-          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-white uppercase leading-[0.95] mb-4">
+          <h1 className="font-display text-3xl md:text-5xl lg:text-6xl text-white uppercase leading-[0.95] mb-3">
             Get Your Free Quotation
           </h1>
-          <p className="text-white/50 text-lg font-body max-w-[600px] mx-auto">
+          <p className="text-white/60 text-base md:text-lg font-body max-w-[600px] mx-auto">
             Fill in the details below and our sales team will prepare a quotation for you. Prices are
             quoted in RM and confirmed by our sales team.
           </p>
@@ -324,11 +334,11 @@ export default function Quotation() {
       </section>
 
       {/* Quotation Form */}
-      <section className="bg-white py-16 md:py-24">
-        <div className="max-w-[820px] mx-auto px-5 md:px-10">
+      <section className="bg-white pt-6 pb-10 md:pt-12 md:pb-20">
+        <div className="max-w-[880px] mx-auto px-5 md:px-10">
           {!submitted ? (
-            <div className="bg-white border border-forest-900/15 rounded-lg p-6 md:p-10">
-              <form onSubmit={handleSubmit} onChange={track.start} className="space-y-6">
+            <div className="bg-white sm:border border-forest-900/15 rounded-lg sm:p-6 md:p-10">
+              <form id="quote-form" onSubmit={handleSubmit} onChange={track.start} className="space-y-8">
                 {/* honeypot */}
                 <input
                   type="text"
@@ -371,8 +381,40 @@ export default function Quotation() {
                   (user, 31-Oct-2026: "pada saat pilih product category dan product type juga
                   tampil model").
                 */}
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(260px,320px)] gap-6 lg:gap-8 items-start">
-                  <div className="space-y-6 min-w-0">
+                <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_minmax(260px,320px)] lg:gap-8 lg:items-start">
+                  {/* The model, following the product type and every design field beside it. First in the
+                      markup so that on a phone it can stay pinned under the header while the fields
+                      below it scroll (from lg it is the right-hand column again). Hidden on a phone
+                      until there is a product to show. */}
+                  <div className={`${previewModel ? "" : "hidden lg:block"} sticky top-16 lg:top-28 z-20 -mx-5 px-5 pt-1 pb-3 bg-white/95 backdrop-blur shadow-[0_10px_14px_-12px_rgba(13,31,22,0.35)] lg:shadow-none sm:-mx-6 sm:px-6 md:-mx-10 md:px-10 lg:mx-0 lg:p-0 lg:bg-transparent lg:backdrop-blur-none lg:order-last h-fit`}>
+                    {previewModel ? (
+                      <>
+                        <StudioPreview
+                          product={previewModel}
+                          collar={design.collar_type || undefined}
+                          color={design.main_color || undefined}
+                          secondaryColor={design.secondary_color || undefined}
+                          sleeve={design.sleeve_type || undefined}
+                          fabric={design.fabric_type || undefined}
+                          artworkUrl={artworkPreviewUrl}
+                          caption={productType || previewModel}
+                          sub={category}
+                          height="h-[170px] sm:h-[220px] lg:h-[300px]"
+                          collapsible
+                        />
+                        <p className="hidden lg:block text-xs font-body text-forest-900/50 mt-2">
+                          A guide to what you are describing — the finished artwork comes from our designer.
+                        </p>
+                      </>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-forest-900/15 bg-off-white h-[300px] flex items-center justify-center px-6 text-center">
+                        <p className="text-sm font-body text-forest-900/50">
+                          Choose a product type and it appears here.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-8 min-w-0">
 
                 {/* ── What you need ── */}
                 <div>
@@ -415,7 +457,7 @@ export default function Quotation() {
                   <div className="space-y-4">
                     <div>
                       <p className={LABEL}>Adult sizes</p>
-                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                      <div className="grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-4 gap-2">
                         {ADULT_SIZES.map((size) => (
                           <label key={size} className="text-center">
                             <span className="block text-xs font-body text-forest-900/60 mb-1">{sizeLabel(size)}</span>
@@ -427,7 +469,7 @@ export default function Quotation() {
                               aria-label={`Quantity for adult size ${sizeLabel(size)}`}
                               value={sizes[size] ?? ""}
                               onChange={(e) => setSizeQty(size, e.target.value)}
-                              className="w-full px-2 py-2 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body text-center focus:outline-none focus:border-teal-500 [color-scheme:light]"
+                              className={SIZE_BOX}
                             />
                           </label>
                         ))}
@@ -435,7 +477,7 @@ export default function Quotation() {
                     </div>
                     <div>
                       <p className={LABEL}>Kids sizes</p>
-                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                      <div className="grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-4 gap-2">
                         {KIDS_SIZES.map((size) => (
                           <label key={size} className="text-center">
                             <span className="block text-xs font-body text-forest-900/60 mb-1">{sizeLabel(size)}</span>
@@ -447,7 +489,7 @@ export default function Quotation() {
                               aria-label={`Quantity for kids size ${sizeLabel(size)}`}
                               value={sizes[size] ?? ""}
                               onChange={(e) => setSizeQty(size, e.target.value)}
-                              className="w-full px-2 py-2 rounded-md border border-forest-900/15 bg-white text-forest-900 text-sm font-body text-center focus:outline-none focus:border-teal-500 [color-scheme:light]"
+                              className={SIZE_BOX}
                             />
                           </label>
                         ))}
@@ -555,44 +597,16 @@ export default function Quotation() {
                 </div>
                   </div>
 
-                  {/* The model, following the product type and every design field beside it. */}
-                  <div className="lg:sticky lg:top-28 h-fit">
-                    {previewModel ? (
-                      <>
-                        <StudioPreview
-                          product={previewModel}
-                          collar={design.collar_type || undefined}
-                          color={design.main_color || undefined}
-                          secondaryColor={design.secondary_color || undefined}
-                          sleeve={design.sleeve_type || undefined}
-                          fabric={design.fabric_type || undefined}
-                          caption={productType || previewModel}
-                          sub={category}
-                          height="h-[260px] md:h-[300px]"
-                        />
-                        <p className="text-xs font-body text-forest-900/50 mt-2">
-                          A guide to what you are describing — the finished artwork comes from our designer.
-                        </p>
-                      </>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-forest-900/15 bg-off-white h-[260px] md:h-[300px] flex items-center justify-center px-6 text-center">
-                        <p className="text-sm font-body text-forest-900/50">
-                          Choose a product type above and it appears here.
-                        </p>
-                      </div>
-                    )}
-                  </div>
                 </div>
-
                 {/* ── Names and numbers ── */}
                 <div>
                   <h2 className={SECTION}>Names and numbers</h2>
-                  <label className="flex items-center gap-2 mb-4">
+                  <label className="flex items-center gap-3 min-h-11 mb-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={namesetOpen}
                       onChange={(e) => setNamesetOpen(e.target.checked)}
-                      className="w-4 h-4 accent-teal-500"
+                      className="w-5 h-5 shrink-0 accent-teal-500"
                     />
                     <span className="text-sm font-body text-forest-900">
                       I want to type in the name and number list now
@@ -601,7 +615,7 @@ export default function Quotation() {
                   {namesetOpen ? (
                     <div className="space-y-3">
                       {nameset.map((row, i) => (
-                        <div key={i} className="grid grid-cols-2 sm:grid-cols-[1.4fr_0.6fr_0.6fr_1.4fr_auto] gap-2">
+                        <div key={i} className="grid grid-cols-2 sm:grid-cols-[1.4fr_0.6fr_0.6fr_1.4fr_auto] gap-2 rounded-lg sm:rounded-none border sm:border-0 border-forest-900/10 p-2 sm:p-0">
                           <input className={FIELD} value={row.name ?? ""} onChange={(e) => setNamesetField(i, "name", e.target.value)} placeholder="Name" aria-label={`Name, row ${i + 1}`} />
                           <input className={FIELD} value={row.number ?? ""} onChange={(e) => setNamesetField(i, "number", e.target.value)} placeholder="No." aria-label={`Number, row ${i + 1}`} />
                           <input className={FIELD} value={row.size ?? ""} onChange={(e) => setNamesetField(i, "size", e.target.value)} placeholder="Size" aria-label={`Size, row ${i + 1}`} />
@@ -610,16 +624,16 @@ export default function Quotation() {
                             type="button"
                             onClick={() => setNameset((rows) => (rows.length > 1 ? rows.filter((_, j) => j !== i) : rows))}
                             aria-label={`Remove row ${i + 1}`}
-                            className="text-forest-900/40 hover:text-red-600 transition-colors px-2"
+                            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-md text-forest-900/50 hover:text-red-600 hover:bg-off-white transition-colors"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
                       ))}
                       <button
                         type="button"
                         onClick={() => setNameset((rows) => (rows.length < 50 ? [...rows, emptyNameset()] : rows))}
-                        className="inline-flex items-center gap-1.5 text-sm font-body text-teal-600 hover:text-teal-700"
+                        className="min-h-11 inline-flex items-center gap-1.5 text-sm font-body font-medium text-teal-700 hover:text-teal-800"
                       >
                         <Plus className="w-4 h-4" /> Add another row
                       </button>
@@ -686,14 +700,20 @@ export default function Quotation() {
                   <textarea id="q-notes" rows={4} className={`${FIELD} resize-none`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional notes or requirements…" />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={pending}
-                  className="w-full bg-[#d7ff00] text-[#0d1f16] px-5 py-3.5 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <Send className="w-4 h-4" />
-                  {pending ? "Submitting…" : "Request Quotation"}
-                </button>
+                {/* The send button rides along the foot of the screen while the form is in view, with
+                    what has been asked for so far — no scrolling back down to find it. */}
+                <OrderBar
+                  bleed="-mx-5 sm:-mx-6 md:-mx-10 lg:mx-0"
+                  title={`${productType || "No product chosen yet"}${(matrixTotal || Number(totalQty) || 0) > 0 ? ` · ${matrixTotal || Number(totalQty)} pcs` : ""}`}
+                  detail="Free quotation in RM, usually within 24 hours"
+                  whatsappText="Hi ASK Creative, I would like a quotation."
+                  action={{
+                    form: "quote-form",
+                    busy: pending,
+                    label: pending ? "Sending…" : <><span className="sm:hidden">Send</span><span className="hidden sm:inline">Request quotation</span></>,
+                    icon: pending ? undefined : <Send className="w-4 h-4" />,
+                  }}
+                />
               </form>
 
               {/* WhatsApp Alternatives */}
@@ -706,7 +726,7 @@ export default function Quotation() {
                       href={`https://wa.me/${member.phone}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-body text-[#25D366] hover:text-[#128C7E] transition-colors border border-[#25D366]/30 hover:border-[#128C7E] rounded-md px-3 py-1.5"
+                      className="min-h-11 inline-flex items-center gap-1.5 text-sm font-body text-[#128C7E] hover:text-[#0b6b5f] transition-colors border border-[#25D366]/40 hover:border-[#128C7E] rounded-md px-3"
                     >
                       <MessageCircle className="w-3 h-3" />
                       {member.name}
@@ -734,7 +754,7 @@ export default function Quotation() {
               </p>
               <Link
                 to="/"
-                className="bg-forest-900 text-white px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-forest-800 transition-colors"
+                className="inline-flex min-h-11 items-center bg-forest-900 text-white px-6 rounded-md text-sm font-body font-medium hover:bg-forest-800 transition-colors"
               >
                 Back to Home
               </Link>
