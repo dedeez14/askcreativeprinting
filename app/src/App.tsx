@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
@@ -17,6 +17,7 @@ import Blog from "./pages/Blog";
 import BlogDetail from "./pages/BlogDetail";
 import Contact from "./pages/Contact";
 import Track from "./pages/Track";
+import LegalPage from "./pages/LegalPage";
 import NotFound from "./pages/NotFound";
 import { trackPageView, initAnalytics } from "./lib/analytics";
 import { useSettings } from "./hooks/useSettings";
@@ -63,6 +64,12 @@ function App() {
           <Route path="/blog/:slug" element={<BlogDetail />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/track" element={<Track />} />
+          {/* Legal pages — the three URLs Meta requires for the WhatsApp Business app. */}
+          <Route path="/privacy-policy" element={<LegalPage pageKey="privacy-policy" />} />
+          <Route path="/terms-of-service" element={<LegalPage pageKey="terms-of-service" />} />
+          <Route path="/data-deletion" element={<LegalPage pageKey="data-deletion" />} />
+          <Route path="/privacy" element={<Navigate to="/privacy-policy" replace />} />
+          <Route path="/terms" element={<Navigate to="/terms-of-service" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>

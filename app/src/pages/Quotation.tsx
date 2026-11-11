@@ -11,6 +11,8 @@ import ColorPicker from "../components/ColorPicker";
 import { useDesignToolConfig } from "../hooks/useDesignSubmission";
 import { previewProductFor } from "../lib/previewProduct";
 import { useEnquiry } from "../hooks/useEnquiry";
+import EnquiryWhatsAppCta from "../components/EnquiryWhatsAppCta";
+import type { EnquiryWhatsAppResponse } from "../lib/enquiryWhatsApp";
 import { enquiryToQuoteRequest } from "../lib/legacyQuote";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
 import { useFormTracking } from "../hooks/useFormTracking";
@@ -64,7 +66,7 @@ const PRODUCT_GROUPS: Array<{ category: string; types: string[]; jobType: ErpJob
   },
 ];
 
-/* App\Support\JobTypes::CATALOGUE — the only values the ERP accepts. */
+/* Fallback for an ERP without GET /settings → job_types (06 B4: the ERP Job Type master is the list). */
 const JOB_TYPES: Array<{ value: ErpJobType; label: string }> = [
   { value: "SUBLIMATION", label: "Sublimation" },
   { value: "BANNER", label: "Banner" },
@@ -114,6 +116,7 @@ const emptyNameset = (): EnquiryNamesetEntry => ({ name: "", number: "", size: "
 export default function Quotation() {
   const [submitted, setSubmitted] = useState(false);
   const [enquiryNo, setEnquiryNo] = useState<string>("");
+  const [result, setResult] = useState<EnquiryWhatsAppResponse | null>(null);
   // The time-captcha the ERP checks (a submit under 3 s after the form opened is refused).
   // Stamped on mount, not during render, so the value is stable for the whole visit.
   const formOpenedAt = useRef(0);
@@ -286,9 +289,10 @@ export default function Quotation() {
     else toast.error("Something went wrong on our side. Please try again.");
   };
 
-  const onDone = (no?: string) => {
+  const onDone = (no?: string, res?: EnquiryWhatsAppResponse | null) => {
     track.markSubmitted();
     setEnquiryNo(no ?? "");
+    setResult(res ?? null);
     setSubmitted(true);
     toast.success(no ? `Quotation request submitted — reference ${no}` : "Quotation request submitted!");
   };
@@ -302,10 +306,10 @@ export default function Quotation() {
     // (VITE_ENQUIRY_V2=1). Until then the same data is carried by the legacy quote request,
     // so nothing a visitor types is lost.
     if (ENQUIRY_V2) {
-      enquiry.mutate(payload, { onSuccess: (res) => onDone(res?.enquiry_no), onError });
+      enquiry.mutate(payload, { onSuccess: (res) => onDone(res?.enquiry_no, res), onError });
     } else {
       quoteRequest.mutate(enquiryToQuoteRequest(payload), {
-        onSuccess: (res) => onDone((res as { enquiry_no?: string })?.enquiry_no),
+        onSuccess: (res) => onDone((res as { enquiry_no?: string })?.enquiry_no, res as EnquiryWhatsAppResponse),
         onError,
       });
     }
@@ -440,7 +444,7 @@ export default function Quotation() {
                     <div className="sm:col-span-2">
                       <label className={LABEL} htmlFor="q-jobtype">Printing / job type *</label>
                       <select id="q-jobtype" className={FIELD} value={jobType} onChange={(e) => setJobType(e.target.value as ErpJobType)} required>
-                        {JOB_TYPES.map((j) => (
+                        {(settings?.job_types?.length ? settings.job_types : JOB_TYPES).map((j) => (
                           <option key={j.value} value={j.value}>{j.label}</option>
                         ))}
                       </select>
@@ -748,6 +752,18 @@ export default function Quotation() {
                   Your enquiry number is <span className="font-medium">{enquiryNo}</span> — please quote it when you contact us.
                 </p>
               )}
+              <EnquiryWhatsAppCta
+                response={result}
+                input={{
+                  enquiryNo,
+                  customerName: name,
+                  company,
+                  product: productType,
+                  totalQty: matrixTotal > 0 ? matrixTotal : Math.trunc(Number(totalQty)) || 0,
+                  eventDate,
+                  neededBy: deliveryDate,
+                }}
+              />
               <p className="text-forest-900/70 text-base font-body max-w-[480px] mx-auto mb-8">
                 Thank you! Our sales team will review your request and get back to you within 24 hours.
                 A confirmation email is on its way to you.

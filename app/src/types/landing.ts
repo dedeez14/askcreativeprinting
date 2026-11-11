@@ -1,3 +1,13 @@
+/** 06 §15 p.4 — GET /settings `showroom` (admin-editable in the ERP). Absent on an older ERP. */
+export interface LandingShowroom {
+  enabled: boolean;
+  title: string | null;
+  address: string | null;
+  opening_hours: Array<{ day: string; hours: string }> | null;
+  map_url: string | null;
+  note: string | null;
+}
+
 export interface LandingSettings {
   site_name: string;
   site_tagline: string;
@@ -33,6 +43,9 @@ export interface LandingSettings {
   production_images: Array<{ src: string; alt: string }>;
   contact_subjects: string[];
   operating_hours: Array<{ day: string; hours: string }>;
+  showroom?: LandingShowroom | null;
+  /** 06 B4 — the ERP Job Type master's website rows (absent on an older ERP: the form keeps its own list). */
+  job_types?: Array<{ value: string; label: string }>;
   footer_links: Array<{ title: string; links: Array<{ label: string; url: string }> }>;
   section_labels?: Record<string, string>;
   visi_misi: {
@@ -247,7 +260,8 @@ export interface LandingProduct {
 // App\Http\Requests\Api\Landing\StoreEnquiryRequest — do not invent others.
 
 /** App\Support\JobTypes::CATALOGUE — the only job types the ERP accepts from the website. */
-export type ErpJobType = 'SUBLIMATION' | 'BANNER' | 'DTF_HEATPRESS' | 'DESIGN_ONLY' | 'OTHER';
+// 06 B4 "… DESIGN_ONLY, and future types": the ERP may add codes (GET /settings → job_types), so any string is allowed.
+export type ErpJobType = 'SUBLIMATION' | 'BANNER' | 'DTF_HEATPRESS' | 'DESIGN_ONLY' | 'OTHER' | (string & {});
 
 /** 06 B4 "Priority should map to LOW/NORMAL/HIGH/URGENT". */
 export type EnquiryPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
@@ -356,6 +370,9 @@ export interface EnquiryResponse {
   status: string;
   assigned_sales: string | null;
   whatsapp_url?: string;
+  /** Stage 4+: a link the customer can open to follow the enquiry (ERP /p/track/{token}). */
+  tracking_url?: string | null;
+  tracking_token?: string | null;
   created_at: string;
 }
 
@@ -455,6 +472,9 @@ export interface DesignSubmissionPayload {
 
 export interface DesignSubmissionResponse {
   enquiry_no: string;
+  whatsapp_url?: string | null;
+  tracking_url?: string | null;
+  tracking_token?: string | null;
   total_qty: number;
   files: number;
   preview: boolean;

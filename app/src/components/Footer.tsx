@@ -26,6 +26,12 @@ const serviceLinks = [
   { label: "Get Quotation", href: "/quotation" },
 ];
 
+const legalLinks = [
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Terms of Service", href: "/terms-of-service" },
+  { label: "Data Deletion", href: "/data-deletion" },
+];
+
 const FALLBACK_SALES_TEAM = [
   { name: "Mrs. Dayang", phone: "60102174774" },
   { name: "Mrs. Khalisah", phone: "60143584774" },
@@ -179,9 +185,17 @@ export default function Footer() {
           <p className="text-white/40 text-xs font-body">
             &copy; 2025 ASK Creative Sdn Bhd. All rights reserved.
           </p>
-          <p className="text-white/40 text-xs font-body">
-            Privacy Policy
-          </p>
+          <nav aria-label="Legal" className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+            {legalLinks.map((link) => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className="text-white/40 text-xs font-body hover:text-white transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
         </div>
       </div>
     </footer>

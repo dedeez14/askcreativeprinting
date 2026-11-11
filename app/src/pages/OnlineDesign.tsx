@@ -20,6 +20,8 @@ import { formatMoney } from "../lib/format";
 import ProductGlyph from "../components/ProductGlyph";
 import ColorPicker from "../components/ColorPicker";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
+import EnquiryWhatsAppCta from "../components/EnquiryWhatsAppCta";
+import type { EnquiryWhatsAppResponse } from "../lib/enquiryWhatsApp";
 import { useFormTracking } from "../hooks/useFormTracking";
 import { useDesignToolConfig, useDesignSubmission } from "../hooks/useDesignSubmission";
 import { designToQuoteRequest } from "../lib/legacyQuote";
@@ -162,6 +164,7 @@ export default function OnlineDesign() {
 
   const [submitted, setSubmitted] = useState(false);
   const [enquiryNo, setEnquiryNo] = useState("");
+  const [result, setResult] = useState<EnquiryWhatsAppResponse | null>(null);
 
   // The time-captcha the ERP checks (a submit under 3 s after the form opened is refused).
   // Stamped on mount, not during render, so the value is stable for the whole visit.
@@ -393,9 +396,10 @@ export default function OnlineDesign() {
     else toast.error("Something went wrong on our side. Please try again.");
   };
 
-  const onDone = (no?: string) => {
+  const onDone = (no?: string, res?: EnquiryWhatsAppResponse | null) => {
     track.markSubmitted();
     setEnquiryNo(no ?? "");
+    setResult(res ?? null);
     setSubmitted(true);
     toast.success(no ? `Design submitted — reference ${no}` : "Design submitted! Our sales team will follow up.");
   };
@@ -407,10 +411,10 @@ export default function OnlineDesign() {
     // The finished configuration goes to POST /design-submissions once the ERP serves Stage 4
     // (VITE_ENQUIRY_V2=1); until then the same data is carried by the legacy quote request.
     if (ENQUIRY_V2) {
-      designSubmission.mutate(payload, { onSuccess: (res) => onDone(res?.enquiry_no), onError });
+      designSubmission.mutate(payload, { onSuccess: (res) => onDone(res?.enquiry_no, res), onError });
     } else {
       quoteRequest.mutate(designToQuoteRequest(payload), {
-        onSuccess: (res) => onDone((res as { enquiry_no?: string })?.enquiry_no),
+        onSuccess: (res) => onDone((res as { enquiry_no?: string })?.enquiry_no, res as EnquiryWhatsAppResponse),
         onError,
       });
     }
@@ -1006,6 +1010,18 @@ export default function OnlineDesign() {
                   Your enquiry number is <span className="font-medium">{enquiryNo}</span> — please quote it when you contact us.
                 </p>
               )}
+              <EnquiryWhatsAppCta
+                response={result}
+                input={{
+                  enquiryNo,
+                  customerName: contact.name,
+                  company: contact.company,
+                  product: [category, selectedProduct].filter(Boolean).join(" / "),
+                  totalQty: total,
+                  eventDate,
+                  neededBy: deliveryDate,
+                }}
+              />
               <p className="text-forest-900/70 text-base font-body max-w-[480px] mx-auto mb-8">Our sales team will contact you within 24 hours with your quotation in RM. For urgent enquiries, please WhatsApp us directly.</p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer" className="min-h-11 inline-flex items-center bg-[#25D366] text-white px-6 rounded-md text-sm font-body font-medium hover:bg-[#128C7E] transition-colors">WhatsApp Our Team</a>

@@ -105,6 +105,35 @@ const productionImages = [
   { src: "/images/real-printer-fleet.jpg", alt: "Sublimation printing facility with multiple printers" },
 ];
 
+/**
+ * 06 §13 p.3 — "clear CTA after every section": a compact quotation + WhatsApp row closing a content
+ * section. `dark` matches the dark-green sections, otherwise it sits on a light background.
+ */
+function SectionCta({ whatsappHref, dark = false, align = "start" }: { whatsappHref: string; dark?: boolean; align?: "start" | "center" }) {
+  return (
+    <div
+      className={`mt-10 md:mt-12 flex flex-col sm:flex-row gap-3 ${align === "center" ? "sm:justify-center" : ""}`}
+      data-section-cta
+    >
+      <Link
+        to="/quotation"
+        className={`px-6 py-3 rounded-md text-sm font-body font-medium transition-colors text-center ${dark ? "bg-[#d7ff00] text-[#0d1f16] hover:bg-[#e5ff4d]" : "bg-forest-900 text-white hover:bg-forest-800"}`}
+      >
+        Get Quotation
+      </Link>
+      <a
+        href={whatsappHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`px-6 py-3 rounded-md text-sm font-body font-medium transition-colors text-center flex items-center justify-center gap-2 ${dark ? "border border-white/30 text-white hover:border-[#d7ff00] hover:text-[#d7ff00]" : "border border-forest-900/30 text-forest-900 hover:border-forest-900 hover:bg-forest-900/5"}`}
+      >
+        <MessageCircle className="w-4 h-4" />
+        WhatsApp Sales Team
+      </a>
+    </div>
+  );
+}
+
 export default function Home() {
   const heroRef = useRef<HTMLElement>(null);
   const { data: apiFeatures } = useFeatures();
@@ -273,17 +302,19 @@ export default function Home() {
               Sublimation printing, custom apparel, embroidery, and premium gifts in Kota Kinabalu, Sabah.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                to="/online-design"
-                className="bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors w-full sm:w-auto text-center"
-              >
-                Start Your Custom Design
-              </Link>
+              {/* 06 §2 p.3 — hero CTAs in the brief's order: Get Instant Quotation, Design Your Apparel,
+                  WhatsApp Sales Team, View Services. */}
               <Link
                 to="/quotation"
+                className="bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors w-full sm:w-auto text-center"
+              >
+                Get Instant Quotation
+              </Link>
+              <Link
+                to="/online-design"
                 className="border border-[#d7ff00] text-[#d7ff00] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#d7ff00]/10 transition-colors w-full sm:w-auto text-center"
               >
-                Get Quotation
+                Design Your Apparel
               </Link>
               <a
                 href={sales.link("Hi ASK Creative, I would like to ask about custom printing.")}
@@ -378,6 +409,7 @@ export default function Home() {
               />
             </div>
           </div>
+          <SectionCta whatsappHref={sales.link("Hi ASK Creative, I would like a quotation.")} />
         </div>
       </section>
 
@@ -411,6 +443,7 @@ export default function Home() {
               </Link>
             ))}
           </div>
+          <SectionCta whatsappHref={sales.link("Hi ASK Creative, I would like a quotation.")} dark />
         </div>
       </section>
 
@@ -480,6 +513,7 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <SectionCta whatsappHref={sales.link("Hi ASK Creative, I would like a quotation.")} />
         </div>
       </section>
 
@@ -521,6 +555,7 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <SectionCta whatsappHref={sales.link("Hi ASK Creative, I would like a quotation.")} dark />
         </div>
       </section>
 
@@ -550,6 +585,7 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <SectionCta whatsappHref={sales.link("Hi ASK Creative, I would like a quotation.")} align="center" />
         </div>
       </section>
 
@@ -584,6 +620,7 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <SectionCta whatsappHref={sales.link("Hi ASK Creative, I would like a quotation.")} />
         </div>
       </section>
 

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PackageSearch, ArrowRight, MessageCircle, Check, Loader2, ExternalLink } from "lucide-react";
 import SEOHead from "../components/SEOHead";
 import { useSettings } from "../hooks/useSettings";
@@ -28,13 +29,28 @@ const portalUrl = (token: string) => `${ERP_ORIGIN}/p/track/${encodeURIComponent
  * what it does today: it opens the ERP tracking page for the token.
  */
 export default function Track() {
-  const [code, setCode] = useState("");
-  const [token, setToken] = useState<string | null>(null);
+  // /track?code=… — the link the WhatsApp enquiry message carries pre-fills (and runs) the lookup.
+  const [searchParams] = useSearchParams();
+  const urlCode = searchParams.get("code") ?? "";
+  const [code, setCode] = useState(urlCode);
+  const [token, setToken] = useState<string | null>(() => {
+    const first = extractToken(urlCode);
+    return ENQUIRY_V2 && first.length >= 6 ? first : null;
+  });
   const [error, setError] = useState<string | null>(null);
   const { data: settings } = useSettings();
   const sales = settings?.sales_team?.[0]?.phone || FALLBACK_SALES;
 
   const status = useJobStatus(token);
+
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !urlCode) return;
+    autoRan.current = true;
+    const next = extractToken(urlCode);
+    // With the status feed on, the lookup already started from the initial state above.
+    if (!ENQUIRY_V2 && next.length >= 6) window.location.href = portalUrl(next);
+  }, [urlCode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
