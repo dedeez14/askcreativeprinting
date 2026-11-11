@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { MessageCircle, FileText } from "lucide-react";
 import { useSalesWhatsApp } from "../hooks/useSalesWhatsApp";
 
@@ -12,9 +12,19 @@ import { useSalesWhatsApp } from "../hooks/useSalesWhatsApp";
  * wide screen, where the header already carries "Get Quotation".
  *
  * The WhatsApp number is the admin's first sales number (06 §9), never a constant in this file.
+ *
+ * Not on the two order forms (Online Design, Get Quotation): there the floating pair sat on top of the
+ * product cards, the size boxes and the submit button on a phone, and "Get Quotation" pointed away from
+ * the form the customer was already filling in. Those pages carry their own docked action bar, with
+ * WhatsApp in it, so the button is still one tap away.
  */
+const OWN_ACTION_BAR = ["/online-design", "/quotation"];
+
 export default function StickyCtas() {
   const sales = useSalesWhatsApp();
+  const { pathname } = useLocation();
+
+  if (OWN_ACTION_BAR.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3" data-sticky-ctas>
