@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import ProductMockup from "./ProductMockup";
 import { isGarment } from "../lib/garments";
@@ -43,12 +43,16 @@ export interface StudioPreviewProps {
    * it pinned at the top while typing without it taking half the screen.
    */
   collapsible?: boolean;
+  /** Draws something else in the frame instead of the plain mockup (the Online Design editor). */
+  stage?: (side: "front" | "back") => ReactNode;
+  /** Extra controls at the end of the bar. */
+  barExtra?: ReactNode;
 }
 
 export default function StudioPreview({
   product, collar = "Round Neck", color = "#1d4ed8", secondaryColor, sleeve, fabric,
   artworkUrl, caption, sub, height = "h-[340px] md:h-[400px]", side: sideProp, onSideChange, artOn,
-  collapsible = false,
+  collapsible = false, stage, barExtra,
 }: StudioPreviewProps) {
   const [ownSide, setOwnSide] = useState<"front" | "back">("front");
   const [folded, setFolded] = useState(false);
@@ -74,6 +78,7 @@ export default function StudioPreview({
             ))}
           </div>
         )}
+        {barExtra}
         {collapsible && (
           <button type="button" onClick={() => setFolded((f) => !f)} aria-expanded={!folded}
             aria-label={folded ? "Show the preview" : "Hide the preview"}
@@ -83,7 +88,7 @@ export default function StudioPreview({
         )}
       </div>
       <div className={`${height} w-full ${collapsible && folded ? "hidden lg:block" : ""}`}>
-        <ProductMockup
+        {stage ? stage(side) : <ProductMockup
           product={product}
           collar={collar}
           color={color}
@@ -94,7 +99,7 @@ export default function StudioPreview({
           side={side}
           showToggle={false}
           artOn={artOn}
-        />
+        />}
       </div>
     </div>
   );

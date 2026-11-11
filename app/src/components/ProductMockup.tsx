@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode, type Ref } from "react";
 import { previewProductFor, type PreviewModel } from "../lib/previewProduct";
 
 /**
@@ -38,14 +38,46 @@ export interface ProductMockupProps {
    * positions the customer ticked, so a logo chosen for the front does not also appear on the back.
    */
   artOn?: { front: boolean; back: boolean };
+  /**
+   * Paint per garment panel (any SVG paint — a colour or `url(#id)` of a gradient / pattern the caller
+   * puts in `defs`). Used by the design editor's full-print mode; unset panels keep the colours.
+   */
+  paint?: MockupPaint;
+  /** Extra <defs> (the gradients and patterns `paint` refers to). */
+  defs?: ReactNode;
+  /** The customer's design, drawn inside the garment and under the shading (local board units). */
+  renderArt?: (ctx: MockupContext) => ReactNode;
+  /** Drawn on top of everything, unclipped — the editor's handles and guides. */
+  overlay?: (ctx: MockupContext) => ReactNode;
+  svgRef?: Ref<SVGSVGElement>;
+  /** Classes of the <svg> (default: 88 % of the frame height). */
+  svgClassName?: string;
 }
 
-type Side = "front" | "back";
+export interface MockupPaint {
+  bodyFront?: string;
+  bodyBack?: string;
+  sleeves?: string;
+  trim?: string;
+}
+
+/** What a design layer drawn into the mockup needs to know about the drawing. */
+export interface MockupContext {
+  side: Side;
+  /** The garment silhouette (garments only) and the id of its clip path. */
+  outline?: string;
+  clipId?: string;
+  sleeves?: string[];
+}
+
+export type Side = "front" | "back";
 type Sleeve = "sleeveless" | "short" | "threequarter" | "long";
 type Neck = "round" | "v" | "polo" | "mandarin" | "shirt" | "hood" | "stand";
 
 const W = 400;
 const H = 440;
+/** The board every mockup is drawn on, and the shift of a garment inside it (for the design editor). */
+export const BOARD = { width: W, height: H, garmentOffsetY: 34 } as const;
 /** Hem line of every garment: a tee is about 1.35× as long as it is wide. */
 const HEM_Y = 336;
 
@@ -249,9 +281,10 @@ function garmentGeometry(spec: GarmentSpec, sleeve: Sleeve, neck: Neck, side: Si
 /* ─────────────────────────── the garment ─────────────────────────── */
 
 function Garment({
-  spec, sleeve, neck, side, main, trim, fabric, artworkUrl,
+  spec, sleeve, neck, side, main, trim: trimColour, fabric, artworkUrl, paint, renderArt, overlay,
 }: {
   spec: GarmentSpec; sleeve: Sleeve; neck: Neck; side: Side; main: string; trim: string; fabric: string; artworkUrl?: string;
+  paint?: MockupPaint; renderArt?: (ctx: MockupContext) => ReactNode; overlay?: (ctx: MockupContext) => ReactNode;
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const g = useMemo(() => garmentGeometry(spec, sleeve, neck, side), [spec, sleeve, neck, side]);
@@ -269,6 +302,13 @@ function Garment({
       : { x: 140, y: neck === "v" ? 132 : 112, w: 120, h: 130 };
 
   const clip = `clip-${uid}`;
+  // Panel paints: a full-print design can give the body, sleeves and trims their own fill.
+  const body = (side === "back" ? paint?.bodyBack : paint?.bodyFront) ?? main;
+  const sleevePaint = paint?.sleeves;
+  const trim = paint?.trim ?? trimColour;
+  /** Shading of trim details needs a colour, not a pattern. */
+  const trimHex = validHex(paint?.trim) ? paint.trim : trimColour;
+  const ctx: MockupContext = { side, outline: g.outline, clipId: clip, sleeves: g.sleeves };
   const shadeH = `sh-${uid}`, shadeV = `sv-${uid}`, glow = `gl-${uid}`;
 
   return (
@@ -295,13 +335,18 @@ function Garment({
         <path d="M148,62 C138,14 262,14 252,62 Z" fill={shade(main, -0.14)} stroke={line} strokeWidth="1.6" />
       )}
 
-      {/* The garment in the main colour. */}
-      <path d={g.outline} fill={main} />
+      {/* The garment in the main colour (or the body paint of a full-print design). */}
+      <path d={g.outline} fill={body} />
+      {sleevePaint && (
+        <g clipPath={`url(#${clip})`}>
+          {g.sleeves.map((d, i) => <path key={`sp${i}`} d={d} fill={sleevePaint} />)}
+        </g>
+      )}
 
       {/* Trims in the second colour. */}
       <g clipPath={`url(#${clip})`}>
         {g.cuffs.map((d, i) => (
-          <path key={`c${i}`} d={d} fill={sleeve === "short" ? main : trim} />
+          <path key={`c${i}`} d={d} fill={sleeve === "short" ? (sleevePaint ?? body) : trim} />
         ))}
         {spec.sidePanels && (() => {
           const u = sleeve === "sleeveless" ? 168 : 142, h = 200 - spec.hem;
@@ -322,13 +367,14 @@ function Garment({
           <image href={artworkUrl} x={art.x} y={art.y} width={art.w} height={art.h} preserveAspectRatio="xMidYMid meet" />
         </g>
       )}
+      {renderArt && <g clipPath={`url(#${clip})`}>{renderArt(ctx)}</g>}
 
       {/* Details that belong to the cut. */}
       {side === "front" && spec.pocket === "kangaroo" && (
-        <path d="M140,236 L260,236 L278,300 L122,300 Z" fill={main} stroke={line} strokeWidth="1.2" opacity="0.98" />
+        <path d="M140,236 L260,236 L278,300 L122,300 Z" fill={body} stroke={line} strokeWidth="1.2" opacity="0.98" />
       )}
       {side === "front" && spec.pocket === "chest" && (
-        <path d="M128,128 L170,128 L170,172 Q149,180 128,172 Z" fill={main} stroke={line} strokeWidth="1.1" />
+        <path d="M128,128 L170,128 L170,172 Q149,180 128,172 Z" fill={body} stroke={line} strokeWidth="1.1" />
       )}
       {side === "front" && spec.placket === "half" && (
         <>
@@ -346,9 +392,9 @@ function Garment({
       )}
       {side === "front" && spec.placket === "zip" && (
         <>
-          <line x1="200" y1="58" x2="200" y2={HEM_Y} stroke={shade(trim, -0.2)} strokeWidth="3.2" />
-          <line x1="200" y1="58" x2="200" y2={HEM_Y} stroke={shade(trim, 0.35)} strokeWidth="1" strokeDasharray="1.5 2.5" />
-          <rect x="195" y="62" width="10" height="20" rx="3" fill={shade(trim, -0.3)} />
+          <line x1="200" y1="58" x2="200" y2={HEM_Y} stroke={shade(trimHex, -0.2)} strokeWidth="3.2" />
+          <line x1="200" y1="58" x2="200" y2={HEM_Y} stroke={shade(trimHex, 0.35)} strokeWidth="1" strokeDasharray="1.5 2.5" />
+          <rect x="195" y="62" width="10" height="20" rx="3" fill={shade(trimHex, -0.3)} />
         </>
       )}
 
@@ -397,7 +443,7 @@ function Garment({
       {(neck === "polo" || neck === "shirt") && (
         side === "front" ? (
           <g stroke={line} strokeWidth="1.2" strokeLinejoin="round">
-            <path d="M158,50 Q200,64 242,50 L240,58 Q200,72 160,58 Z" fill={shade(trim, -0.1)} />
+            <path d="M158,50 Q200,64 242,50 L240,58 Q200,72 160,58 Z" fill={shade(trimHex, -0.1)} />
             <path d={neck === "shirt" ? "M160,48 L199,76 L180,112 L144,66 Z" : "M160,48 L199,76 L184,104 L146,68 Z"} fill={trim} />
             <path d={neck === "shirt" ? "M240,48 L201,76 L220,112 L256,66 Z" : "M240,48 L201,76 L216,104 L254,68 Z"} fill={trim} />
           </g>
@@ -433,6 +479,7 @@ function Garment({
         <path d={`M${200 - g.hemHalf + 2},${g.hemY - 13} Q200,${g.hemY - 6} ${mx(200 - g.hemHalf + 2)},${g.hemY - 13}`} />
         {g.cuffs.map((d, i) => <path key={`cs${i}`} d={d} />)}
       </g>
+      {overlay?.(ctx)}
     </g>
   );
 }
@@ -573,6 +620,21 @@ export function hasOwnNeck(product: string): boolean {
   return !!spec && (spec.neck === "hood" || spec.neck === "stand" || spec.neck === "shirt");
 }
 
+/** What the design editor needs to know about a product's drawing. */
+export function mockupInfo(product: string): {
+  model: PreviewModel; garment: boolean; frontPrint?: "centre" | "logo"; vNeck: boolean; sleeveless: boolean;
+} {
+  const model = previewProductFor(product) ?? "T-Shirt";
+  const spec = GARMENTS[model];
+  return {
+    model,
+    garment: !!spec,
+    frontPrint: spec?.frontPrint,
+    vNeck: spec?.neck === "v",
+    sleeveless: spec?.sleeve === "sleeveless" && !!spec.fixedSleeve,
+  };
+}
+
 /* ─────────────────────────── the mockup ─────────────────────────── */
 
 /** Where each product's ground shadow sits (its lowest point + a little). Bunting hangs: no shadow. */
@@ -582,7 +644,8 @@ const SHADOW: Record<string, number | undefined> = {
 
 export default function ProductMockup({
   product, collar, color = "#1d4ed8", secondaryColor, sleeve, fabric = "", artworkUrl, defaultSide = "front",
-  side: sideProp, showToggle = true, artOn,
+  side: sideProp, showToggle = true, artOn, paint, defs, renderArt, overlay, svgRef,
+  svgClassName = "h-[88%] w-auto max-w-full",
 }: ProductMockupProps) {
   const [ownSide, setSide] = useState<Side>(defaultSide);
   const side = sideProp ?? ownSide;
@@ -594,16 +657,25 @@ export default function ProductMockup({
 
   return (
     <div className="relative h-full w-full flex items-center justify-center">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-[88%] w-auto max-w-full" role="img"
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className={svgClassName} role="img"
+        xmlns="http://www.w3.org/2000/svg"
         aria-label={`${model}${spec ? `, ${side} view` : ""}`}>
+        {defs && <defs>{defs}</defs>}
         {/* Ground shadow just under the product, so it stands on the board instead of floating. */}
         {SHADOW[spec ? "garment" : model] && (
           <ellipse cx="200" cy={SHADOW[spec ? "garment" : model]} rx={spec ? 120 : 96} ry="8" fill="#000" opacity="0.10" style={{ filter: "blur(4px)" }} />
         )}
         {spec
           ? <Garment spec={spec} sleeve={spec.fixedSleeve ? spec.sleeve : sleeveFrom(sleeve, spec.sleeve)} neck={neckFrom(collar, spec.neck)}
-              side={side} main={main} trim={trim} fabric={fabric} artworkUrl={artHere ? artworkUrl : undefined} />
-          : <OtherProduct model={model} main={main} trim={trim} artworkUrl={artworkUrl} />}
+              side={side} main={main} trim={trim} fabric={fabric} artworkUrl={artHere ? artworkUrl : undefined}
+              paint={paint} renderArt={renderArt} overlay={overlay} />
+          : (
+            <>
+              <OtherProduct model={model} main={main} trim={trim} artworkUrl={artworkUrl} />
+              {renderArt?.({ side: "front" })}
+              {overlay?.({ side: "front" })}
+            </>
+          )}
       </svg>
 
       {spec && showToggle && (
