@@ -37,6 +37,7 @@ import {
 } from "../editor/state";
 import { emptyDoc, isEmptyDoc, type DesignDoc, type Side as DesignSide } from "../editor/types";
 import { fullPrintAllowed, fullPrintByDefault, hasBack, printArea } from "../editor/printAreas";
+import { wrapsFor } from "../editor/wrap";
 import { buildDesignJson, designSummary, renderSidePng, sidesWithDesign } from "../editor/exportDesign";
 import type { UploadedFile } from "../types/landing";
 import { ENQUIRY_V2 } from "../lib/features";
@@ -309,7 +310,8 @@ export default function OnlineDesign() {
     if (!hasBack(name) && doc.layers.some((l) => l.side === "back")) {
       toast.info(`The ${name} has no back to print on — the back of your design is kept for a garment.`);
     }
-    const out = doc.layers.filter((l) => (l.side === "front" || hasBack(name)) && outside(l, printArea(name, l.side, mode)));
+    // A wrapping full print has no edge to fall off (the silhouette and the side seams do the cutting).
+    const out = wrapsFor(name, mode) ? [] : doc.layers.filter((l) => (l.side === "front" || hasBack(name)) && outside(l, printArea(name, l.side, mode)));
     if (out.length) {
       toast.warning(`${out.length} element${out.length > 1 ? "s" : ""} of your design ${out.length > 1 ? "fall" : "falls"} outside the print area of the ${name} — outlined in red, please move ${out.length > 1 ? "them" : "it"}.`);
     }

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { printArea } from "./printAreas";
-import { constrain, duplicateLayer, newId, removeLayer, type Update } from "./state";
+import { duplicateLayer, newId, removeLayer, type Update } from "./state";
+import { place } from "./wrap";
 import type { DesignDoc, Layer } from "./types";
 
 interface KeyTarget {
@@ -35,8 +35,8 @@ export function useEditorKeys(enabled: boolean, p: KeyTarget) {
       const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
       if (d) {
         e.preventDefault();
-        const area = printArea(product, sel.side, doc.mode);
-        update((doc0) => ({ ...doc0, layers: doc0.layers.map((l) => (l.id === sel.id ? constrain({ ...l, x: l.x + d[0], y: l.y + d[1] } as Layer, area) : l)) }), `k:${sel.id}`);
+        // Nudging past a side seam of a full print carries the element round to the other view.
+        update((doc0) => ({ ...doc0, layers: doc0.layers.map((l) => (l.id === sel.id ? place({ ...l, x: l.x + d[0], y: l.y + d[1] } as Layer, product, doc0.mode) : l)) }), `k:${sel.id}`);
       }
     };
     window.addEventListener("keydown", onKey);

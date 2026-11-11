@@ -68,6 +68,8 @@ export interface MockupContext {
   outline?: string;
   clipId?: string;
   sleeves?: string[];
+  /** The body panel alone (the outline without the sleeves) — what wraps round at the side seams. */
+  body?: string;
 }
 
 export type Side = "front" | "back";
@@ -308,7 +310,7 @@ function Garment({
   const trim = paint?.trim ?? trimColour;
   /** Shading of trim details needs a colour, not a pattern. */
   const trimHex = validHex(paint?.trim) ? paint.trim : trimColour;
-  const ctx: MockupContext = { side, outline: g.outline, clipId: clip, sleeves: g.sleeves };
+  const ctx: MockupContext = { side, outline: g.outline, clipId: clip, sleeves: g.sleeves, body: g.body };
   const shadeH = `sh-${uid}`, shadeV = `sv-${uid}`, glow = `gl-${uid}`;
 
   return (
@@ -623,6 +625,8 @@ export function hasOwnNeck(product: string): boolean {
 /** What the design editor needs to know about a product's drawing. */
 export function mockupInfo(product: string): {
   model: PreviewModel; garment: boolean; frontPrint?: "centre" | "logo"; vNeck: boolean; sleeveless: boolean;
+  /** Body half-width at the hem (the side seams sit at 200 ± hem). */
+  hem: number;
 } {
   const model = previewProductFor(product) ?? "T-Shirt";
   const spec = GARMENTS[model];
@@ -632,6 +636,7 @@ export function mockupInfo(product: string): {
     frontPrint: spec?.frontPrint,
     vNeck: spec?.neck === "v",
     sleeveless: spec?.sleeve === "sleeveless" && !!spec.fixedSleeve,
+    hem: spec?.hem ?? 86,
   };
 }
 

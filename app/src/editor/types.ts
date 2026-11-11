@@ -97,6 +97,8 @@ export interface DesignDoc {
   layers: Layer[];
   /** Full-print panel paints; an unset panel follows the garment colours. */
   fills: Partial<Record<PanelId, FillSpec>>;
+  /** Full print: body fills run on round the side seams (default true). */
+  continuous?: boolean;
   /** The uploads the design uses (kept so a restored design still sends its files). */
   assets: UploadedFile[];
 }

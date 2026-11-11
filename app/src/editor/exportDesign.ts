@@ -4,7 +4,8 @@ import { flushSync } from "react-dom";
 import DesignStage, { type GarmentLook } from "./DesignStage";
 import { embeddedFontCss, ensureFont, fontById, toDataUrl } from "./fonts";
 import { layerBox } from "./geometry";
-import { patternById } from "./patterns";
+import { patternById, wrapScale } from "./patterns";
+import { ghostShifts, layersOnView, onBody, stripX, wrapsFor, type Seams } from "./wrap";
 import { fullPrintAllowed, printArea } from "./printAreas";
 import { BOARD, mockupInfo } from "../components/ProductMockup";
 import type { DesignDoc, FillSpec, Layer, PanelId, Side, TextLayer } from "./types";
@@ -16,7 +17,8 @@ import type { DesignDoc, FillSpec, Layer, PanelId, Side, TextLayer } from "./typ
 
 export const sidesWithDesign = (doc: DesignDoc, product: string): Side[] => {
   const sides: Side[] = mockupInfo(product).garment ? ["front", "back"] : ["front"];
-  return sides.filter((s) => doc.layers.some((l) => l.side === s)
+  // On a wrapping full print, a side also carries the parts that run round from the other side.
+  return sides.filter((s) => layersOnView(doc, s, product).length > 0
     || (doc.mode === "full" && Object.keys(doc.fills).length > 0));
 };
 
@@ -118,17 +120,31 @@ export interface ExportContext {
   garmentColors: { main: string; secondary?: string };
 }
 
-function fillJson(fill: FillSpec, artworkPaths: string[]) {
+/**
+ * One panel fill. `continuous` = the body fill runs round the body as one strip (front then back, see
+ * wrap.ts); `effective_scale` is the pattern size actually drawn (resized to repeat a whole number of
+ * times round the body).
+ */
+function fillJson(fill: FillSpec, artworkPaths: string[], continuous: boolean, seams: Seams | null, snap: boolean) {
+  const period = seams ? 2 * seams.D : 0;
+  const base = { continuous };
   switch (fill.kind) {
-    case "solid": return { type: "solid", color: fill.color };
-    case "gradient": return { type: "gradient", colors: fill.colors, angle_deg: fill.angle };
-    case "pattern": return {
-      type: "pattern", pattern: fill.pattern, pattern_name: patternById(fill.pattern).label,
-      colors: fill.colors, scale: r3(fill.scale), rotation_deg: fill.rotate,
-    };
+    case "solid": return { type: "solid", color: fill.color, ...base };
+    case "gradient": return { type: "gradient", colors: fill.colors, angle_deg: fill.angle, ...base, span: continuous ? "body_strip" : "panel" };
+    case "pattern": {
+      const r = ((fill.rotate % 180) + 180) % 180;
+      const p = patternById(fill.pattern);
+      const eff = snap && seams && (r === 0 || r === 90) ? wrapScale(r === 0 ? p.w : p.h, fill.scale, period) : fill.scale;
+      return {
+        type: "pattern", pattern: fill.pattern, pattern_name: patternById(fill.pattern).label,
+        colors: fill.colors, scale: r3(fill.scale), effective_scale: r3(eff), tile_board_units: { w: p.w, h: p.h },
+        rotation_deg: fill.rotate, ...base,
+      };
+    }
     case "image": return {
       type: "image", fit: fill.mode, scale: r3(fill.scale), file_name: fill.name ?? null, path: fill.path ?? null,
       artwork_index: fill.path ? (artworkPaths.indexOf(fill.path) >= 0 ? artworkPaths.indexOf(fill.path) : null) : null,
+      ...base, span: continuous && fill.mode === "cover" ? "body_strip" : "panel",
     };
   }
 }
@@ -152,6 +168,20 @@ function layerJson(l: Layer, z: number, ctx: ExportContext, mode: DesignDoc["mod
     opacity: l.opacity ?? 1,
     board: { cx: r1(l.x), cy: r1(l.y + boardShift(ctx.product)), w: r1(w), h: r1(h) },
   };
+  // Full print round the body: where the layer sits on the unrolled body strip, and whether it
+  // crosses a side seam (its overflow is printed on the other side).
+  const s = wrapsFor(ctx.product, mode);
+  if (s) {
+    const body = onBody(l, s);
+    const shifts = body ? ghostShifts(l, s) : [];
+    Object.assign(base, {
+      on_body: body,
+      wrap: shifts.length > 0,
+      wraps_onto: shifts.length > 0 ? (l.side === "front" ? "back" : "front") : null,
+      strip_x: body ? r3(stripX(l, s)) : null,
+      strip_w: body ? r3(w / (2 * s.D)) : null,
+    });
+  }
   if (l.type === "image") {
     const idx = l.path ? ctx.artworkPaths.indexOf(l.path) : -1;
     return { ...base, file_name: l.name ?? null, path: l.path ?? null, artwork_index: idx >= 0 ? idx : null, keep_ratio: l.lockRatio };
@@ -187,20 +217,36 @@ export function buildDesignJson(doc: DesignDoc, ctx: ExportContext): DesignJson 
     return layerJson(l, z[l.side], ctx, doc.mode);
   });
   const panels: PanelId[] = ["bodyFront", "bodyBack", "sleeves", "trim"];
+  const seams = wrapsFor(ctx.product, doc.mode);
+  const continuous = !!seams && doc.continuous !== false;
   return {
     contract: "ask-design-editor-v1",
+    version: 2,
     product: ctx.product,
     mockup: info.model,
     mode: doc.mode === "full" ? "full_print" : "print_area",
     full_print_available: fullPrintAllowed(ctx.product),
     units: "Positions x/y/w/h/center are fractions of the print area of their side (0–1, from its top-left corner; the box before rotation). font_size_rel is a fraction of the print-area height. board = the 400 × 440 mockup board of the PNG previews (PNG pixels = board × 4).",
     garment_colors: ctx.garmentColors,
-    print_areas: Object.fromEntries(sides.map((s) => {
-      const a = printArea(ctx.product, s, doc.mode);
-      return [s, { board: { x: a.x, y: a.y + boardShift(ctx.product), w: a.w, h: a.h }, clip: doc.mode === "full" && info.garment ? "garment_silhouette" : "rectangle" }];
-    })),
+    print_areas: {
+      ...Object.fromEntries(sides.map((s) => {
+        const a = printArea(ctx.product, s, doc.mode);
+        return [s, { board: { x: a.x, y: a.y + boardShift(ctx.product), w: a.w, h: a.h }, clip: doc.mode === "full" && info.garment ? "garment_silhouette" : "rectangle" }];
+      })),
+      ...(seams ? {
+        body_strip: {
+          note: "Full print wraps round the body: the front (viewer-left to viewer-right) continues into the back (viewer-left to viewer-right) at the side seams, and the back's right edge meets the front's left edge. strip_x 0–1 runs round the body from the front's left seam; front x = seam_left + strip_x × circumference, back x = seam_left + strip_x × circumference − panel_width.",
+          seam_left_x: seams.L,
+          seam_right_x: seams.R,
+          panel_width: seams.D,
+          circumference: 2 * seams.D,
+          board_y: { top: seams.top + boardShift(ctx.product), height: seams.height },
+          below_underarm_y: seams.underY + boardShift(ctx.product),
+        },
+      } : {}),
+    },
     fills: doc.mode === "full"
-      ? Object.fromEntries(panels.filter((p) => doc.fills[p]).map((p) => [p, fillJson(doc.fills[p]!, ctx.artworkPaths)]))
+      ? Object.fromEntries(panels.filter((p) => doc.fills[p]).map((p) => [p, fillJson(doc.fills[p]!, ctx.artworkPaths, continuous && (p === "bodyFront" || p === "bodyBack"), seams, continuous && p !== "trim")]))
       : {},
     layers,
   };
@@ -208,6 +254,8 @@ export function buildDesignJson(doc: DesignDoc, ctx: ExportContext): DesignJson 
 
 /** A short plain-text reading of the design, for the notes the sales team reads first. */
 export function designSummary(doc: DesignDoc, product: string): string {
+  const seams = wrapsFor(product, doc.mode);
+  const wrapNote = (l: Layer) => (seams && ghostShifts(l, seams).length ? " (wraps round the side seam)" : "");
   if (doc.layers.length === 0 && !(doc.mode === "full" && Object.keys(doc.fills).length)) return "";
   const out: string[] = [`Online editor (${doc.mode === "full" ? "full print" : "print area"}):`];
   if (doc.mode === "full") {
@@ -223,9 +271,9 @@ export function designSummary(doc: DesignDoc, product: string): string {
     const a = printArea(product, side, doc.mode);
     out.push(`- ${side}: ${ls.map((l) => {
       const pos = `@${Math.round(((l.x - a.x) / a.w) * 100)}%,${Math.round(((l.y - a.y) / a.h) * 100)}%`;
-      if (l.type === "text") return `${l.bind ? `[${l.bind.toUpperCase()}] ` : ""}"${l.text.replace(/\s+/g, " ").slice(0, 40)}" ${fontById(l.font).label} ${l.color}${l.strokeWidth ? ` outline ${l.strokeColor}` : ""} ${pos}`;
-      if (l.type === "image") return `image ${l.name ?? ""} ${pos}`;
-      return `${l.shape} ${l.color} ${pos}`;
+      if (l.type === "text") return `${l.bind ? `[${l.bind.toUpperCase()}] ` : ""}"${l.text.replace(/\s+/g, " ").slice(0, 40)}" ${fontById(l.font).label} ${l.color}${l.strokeWidth ? ` outline ${l.strokeColor}` : ""} ${pos}${wrapNote(l)}`;
+      if (l.type === "image") return `image ${l.name ?? ""} ${pos}${wrapNote(l)}`;
+      return `${l.shape} ${l.color} ${pos}${wrapNote(l)}`;
     }).join("; ")}`);
   }
   return out.join("\n");

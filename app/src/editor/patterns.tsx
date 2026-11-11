@@ -104,16 +104,44 @@ export const PATTERNS: PatternDef[] = [
 
 export const patternById = (id: PatternId): PatternDef => PATTERNS.find((p) => p.id === id) ?? PATTERNS[0];
 
+/**
+ * Continuity round the body (full print, "Continuous around the body"): the back panel's paint is the
+ * front's moved one panel width along the unrolled strip, so it carries on across the side seams.
+ *   shift   x offset of this panel's paint (back = −D, so back(x) = front(x + D));
+ *   period  the circumference 2D — a repeating pattern is resized to fit it a whole number of times,
+ *           so the back's right seam meets the front's left seam too;
+ *   box     the whole strip in this panel's coordinates (gradients and a "fill" picture span it).
+ */
+export interface Continuity {
+  shift: number;
+  period: number;
+  box?: { x: number; y: number; w: number; h: number };
+}
+
+/** A tile scale that repeats a whole number of times round the body (straight or right-angled patterns). */
+export function wrapScale(base: number, scale: number, period: number): number {
+  const k = Math.max(1, Math.round(period / (base * scale)));
+  return period / (k * base);
+}
+
 /** The <defs> entry and the paint string of one fill. */
-export function fillPaint(id: string, fill: FillSpec): { def: ReactNode; paint: string } {
+export function fillPaint(id: string, fill: FillSpec, cont?: Continuity): { def: ReactNode; paint: string } {
+  const shift = cont?.shift ?? 0;
+  const move = shift ? `translate(${shift} 0) ` : "";
   switch (fill.kind) {
     case "solid":
       return { def: null, paint: fill.color };
     case "gradient": {
       const stops = fill.colors.length > 1 ? fill.colors : [fill.colors[0] ?? "#000", fill.colors[0] ?? "#000"];
+      const b = cont?.box;
       return {
         paint: `url(#${id})`,
-        def: (
+        def: b ? (
+          <linearGradient key={id} id={id} gradientUnits="userSpaceOnUse" x1={b.x + b.w / 2} y1={b.y} x2={b.x + b.w / 2} y2={b.y + b.h}
+            gradientTransform={`rotate(${fill.angle} ${b.x + b.w / 2} ${b.y + b.h / 2})`}>
+            {stops.map((c, i) => <stop key={i} offset={i / (stops.length - 1)} stopColor={c} />)}
+          </linearGradient>
+        ) : (
           <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1" gradientTransform={`rotate(${fill.angle} 0.5 0.5)`}>
             {stops.map((c, i) => <stop key={i} offset={i / (stops.length - 1)} stopColor={c} />)}
           </linearGradient>
@@ -122,11 +150,13 @@ export function fillPaint(id: string, fill: FillSpec): { def: ReactNode; paint: 
     }
     case "pattern": {
       const p = patternById(fill.pattern);
+      const r = ((fill.rotate % 180) + 180) % 180;
+      const scale = cont && (r === 0 || r === 90) ? wrapScale(r === 0 ? p.w : p.h, fill.scale, cont.period) : fill.scale;
       return {
         paint: `url(#${id})`,
         def: (
           <pattern key={id} id={id} patternUnits="userSpaceOnUse" width={p.w} height={p.h}
-            patternTransform={`rotate(${fill.rotate}) scale(${fill.scale})`}>
+            patternTransform={`${move}rotate(${fill.rotate}) scale(${scale})`}>
             {p.tile(fill.colors)}
           </pattern>
         ),
@@ -135,6 +165,18 @@ export function fillPaint(id: string, fill: FillSpec): { def: ReactNode; paint: 
     case "image":
       if (fill.mode === "cover") {
         const s = fill.scale;
+        const b = cont?.box;
+        if (b) {
+          // One picture round the whole body: the tile IS the strip, so it repeats exactly once per turn.
+          return {
+            paint: `url(#${id})`,
+            def: (
+              <pattern key={id} id={id} patternUnits="userSpaceOnUse" x={b.x} y={b.y} width={b.w} height={b.h}>
+                <image href={fill.src} x={(b.w * (1 - s)) / 2} y={(b.h * (1 - s)) / 2} width={b.w * s} height={b.h * s} preserveAspectRatio="xMidYMid slice" />
+              </pattern>
+            ),
+          };
+        }
         return {
           paint: `url(#${id})`,
           def: (
@@ -144,25 +186,41 @@ export function fillPaint(id: string, fill: FillSpec): { def: ReactNode; paint: 
           ),
         };
       }
-      return {
-        paint: `url(#${id})`,
-        def: (
-          <pattern key={id} id={id} patternUnits="userSpaceOnUse" width={80 * fill.scale} height={80 * fill.scale}>
-            <image href={fill.src} width={80 * fill.scale} height={80 * fill.scale} preserveAspectRatio="xMidYMid slice" />
-          </pattern>
-        ),
-      };
+      {
+        const t = 80 * (cont ? wrapScale(80, fill.scale, cont.period) : fill.scale);
+        return {
+          paint: `url(#${id})`,
+          def: (
+            <pattern key={id} id={id} patternUnits="userSpaceOnUse" width={t} height={t} patternTransform={move || undefined}>
+              <image href={fill.src} width={t} height={t} preserveAspectRatio="xMidYMid slice" />
+            </pattern>
+          ),
+        };
+      }
   }
 }
 
+/** Geometry of the body strip, for continuous fills (see wrap.ts). */
+export interface StripGeometry { L: number; D: number; top: number; height: number }
+
 /** All panel paints of a design, ready for ProductMockup's `paint` / `defs`. */
-export function panelPaints(prefix: string, fills: Partial<Record<PanelId, FillSpec>>): { paint: MockupPaint; defs: ReactNode[] } {
+export function panelPaints(
+  prefix: string, fills: Partial<Record<PanelId, FillSpec>>, strip?: StripGeometry | null,
+): { paint: MockupPaint; defs: ReactNode[] } {
   const paint: MockupPaint = {};
   const defs: ReactNode[] = [];
   (Object.keys(fills) as PanelId[]).forEach((panel) => {
     const fill = fills[panel];
     if (!fill) return;
-    const { def, paint: p } = fillPaint(`${prefix}-${panel}`, fill);
+    let cont: Continuity | undefined;
+    if (strip) {
+      const period = 2 * strip.D;
+      if (panel === "bodyFront") cont = { shift: 0, period, box: { x: strip.L, y: strip.top, w: period, h: strip.height } };
+      else if (panel === "bodyBack") cont = { shift: -strip.D, period, box: { x: strip.L - strip.D, y: strip.top, w: period, h: strip.height } };
+      // Sleeves do not wrap, but use the same pattern size as the body they are sewn to.
+      else if (panel === "sleeves") cont = { shift: 0, period };
+    }
+    const { def, paint: p } = fillPaint(`${prefix}-${panel}`, fill, cont);
     paint[panel] = p;
     if (def) defs.push(def);
   });

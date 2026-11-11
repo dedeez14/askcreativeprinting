@@ -8,6 +8,7 @@ import type { UploadedFile } from "../types/landing";
 import { FONTS, ensureFont, fontFamily } from "./fonts";
 import { fillPaint, PATTERNS, patternById } from "./patterns";
 import { fullPrintAllowed, hasBack, printArea } from "./printAreas";
+import { wrapsFor } from "./wrap";
 import {
   addLayer, duplicateLayer, imageRatio, makeImage, makeShape, makeText, newId, patchLayer,
   removeLayer, reorder, type Update,
@@ -148,6 +149,7 @@ export default function DesignTools(props: DesignToolsProps) {
   const where = { product, side, mode: doc.mode };
   const selected = doc.layers.find((l) => l.id === selectedId) ?? null;
   const twoSided = hasBack(product);
+  const wraps = !!wrapsFor(product, doc.mode);
   const canFull = fullPrintAllowed(product);
   const contrast = secondaryColor || (mainColor.toLowerCase() === "#ffffff" ? "#0d1f16" : "#ffffff");
 
@@ -264,6 +266,13 @@ export default function DesignTools(props: DesignToolsProps) {
         </div>
       )}
 
+      {wraps && (
+        <p className="text-xs font-body text-forest-900/65">
+          Full print wraps round the body like the real garment: drag anything past the side edge and it
+          carries on onto the {side === "front" ? "back" : "front"}. The dotted lines are the side seams.
+        </p>
+      )}
+
       {/* Add */}
       <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
         <button type="button" onClick={() => fileInput.current?.click()} disabled={busy} className={`${BTN} ${OFF} flex-col !gap-0.5 py-2`}>
@@ -352,6 +361,16 @@ export default function DesignTools(props: DesignToolsProps) {
               </button>
             ))}
           </div>
+          {wraps && (
+            <label className="flex min-h-11 cursor-pointer items-start gap-3">
+              <input type="checkbox" checked={doc.continuous !== false} className="mt-0.5 h-5 w-5 accent-teal-500"
+                onChange={(e) => update((d) => ({ ...d, continuous: e.target.checked }))} />
+              <span className="text-sm font-body text-forest-900">
+                Continuous around the body
+                <span className="block text-xs text-forest-900/60">Patterns, gradients and pictures on the front and back run on across the side seams.</span>
+              </span>
+            </label>
+          )}
           <div className="grid grid-cols-4 gap-1 rounded-lg bg-forest-900/[0.06] p-0.5" role="group" aria-label="Fill type">
             {(["solid", "gradient", "pattern", "image"] as const).map((k) => (
               <button key={k} type="button" aria-pressed={(fill?.kind ?? "solid") === k}
