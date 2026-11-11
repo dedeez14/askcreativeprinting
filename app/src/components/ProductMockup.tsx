@@ -29,6 +29,15 @@ export interface ProductMockupProps {
   artworkUrl?: string;
   /** Which side to open on (the customer can flip it with the Front / Back buttons). */
   defaultSide?: "front" | "back";
+  /** Controlled side — set by a caller that draws its own Front / Back switch (StudioPreview). */
+  side?: "front" | "back";
+  /** Draw the built-in Front / Back switch over the drawing (off when the caller has its own). */
+  showToggle?: boolean;
+  /**
+   * Which side of a garment carries the artwork. Defaults to both; the studio passes the print
+   * positions the customer ticked, so a logo chosen for the front does not also appear on the back.
+   */
+  artOn?: { front: boolean; back: boolean };
 }
 
 type Side = "front" | "back";
@@ -573,8 +582,11 @@ const SHADOW: Record<string, number | undefined> = {
 
 export default function ProductMockup({
   product, collar, color = "#1d4ed8", secondaryColor, sleeve, fabric = "", artworkUrl, defaultSide = "front",
+  side: sideProp, showToggle = true, artOn,
 }: ProductMockupProps) {
-  const [side, setSide] = useState<Side>(defaultSide);
+  const [ownSide, setSide] = useState<Side>(defaultSide);
+  const side = sideProp ?? ownSide;
+  const artHere = !artOn || artOn[side];
   const model = previewProductFor(product) ?? "T-Shirt";
   const spec = GARMENTS[model];
   const main = validHex(color) ? color : "#1d4ed8";
@@ -590,11 +602,11 @@ export default function ProductMockup({
         )}
         {spec
           ? <Garment spec={spec} sleeve={spec.fixedSleeve ? spec.sleeve : sleeveFrom(sleeve, spec.sleeve)} neck={neckFrom(collar, spec.neck)}
-              side={side} main={main} trim={trim} fabric={fabric} artworkUrl={artworkUrl} />
+              side={side} main={main} trim={trim} fabric={fabric} artworkUrl={artHere ? artworkUrl : undefined} />
           : <OtherProduct model={model} main={main} trim={trim} artworkUrl={artworkUrl} />}
       </svg>
 
-      {spec && (
+      {spec && showToggle && (
         <div className="absolute bottom-3 right-3 flex rounded-md bg-white/90 backdrop-blur p-0.5 shadow-sm" role="group" aria-label="View">
           {(["front", "back"] as const).map((s) => (
             <button key={s} type="button" onClick={() => setSide(s)} aria-pressed={side === s}
