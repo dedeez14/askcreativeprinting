@@ -85,7 +85,10 @@ export function ensureFont(id: FontId, bold = false, italic = false): Promise<vo
     p = face.load().then((f) => {
       document.fonts.add(f);
       listeners.forEach((fn) => fn());
-    }).catch(() => { /* the fallback font is drawn instead */ });
+    }).catch(() => {
+      // The fallback font is drawn meanwhile; the next call tries again.
+      loading.delete(key);
+    });
     loading.set(key, p);
   }
   return p;

@@ -23,7 +23,9 @@ export const sidesWithDesign = (doc: DesignDoc, product: string): Side[] => {
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
 
 /** The garment and design of one side as a PNG — drawn off screen, never from the live editor. */
-export async function renderSidePng(look: GarmentLook, doc: DesignDoc, side: Side, width = 1600): Promise<Blob | null> {
+export async function renderSidePng(
+  look: GarmentLook, doc: DesignDoc, side: Side, width = 1600,
+): Promise<{ blob: Blob; missing: number } | null> {
   const texts = doc.layers.filter((l): l is TextLayer => l.type === "text" && l.side === side);
   await Promise.all(texts.map((t) => ensureFont(t.font, t.bold, t.italic)));
 
@@ -50,6 +52,7 @@ export async function renderSidePng(look: GarmentLook, doc: DesignDoc, side: Sid
 
     // Pictures must be inside the file: an SVG drawn as an image loads nothing from outside.
     const cache = new Map<string, string>();
+    let missing = 0;
     for (const img of Array.from(clone.querySelectorAll("image"))) {
       const href = img.getAttribute("href") ?? img.getAttribute("xlink:href") ?? "";
       if (!href || href.startsWith("data:")) continue;
@@ -57,7 +60,8 @@ export async function renderSidePng(look: GarmentLook, doc: DesignDoc, side: Sid
         if (!cache.has(href)) cache.set(href, await toDataUrl(href));
         img.setAttribute("href", cache.get(href)!);
       } catch {
-        img.remove();
+        // Left as it is (an image cannot load it); counted, so the JSON says the preview is incomplete.
+        missing++;
       }
     }
     const css = await embeddedFontCss(texts.map((t) => ({ font: t.font, bold: t.bold, italic: t.italic })));
@@ -87,7 +91,8 @@ export async function renderSidePng(look: GarmentLook, doc: DesignDoc, side: Sid
       ctx.fillStyle = "#F0F4F1";
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(pic, 0, 0, width, height);
-      return await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
+      const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
+      return blob ? { blob, missing } : null;
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -102,6 +107,8 @@ export async function renderSidePng(look: GarmentLook, doc: DesignDoc, side: Sid
 /* ─────────────────────────── the JSON for the designer ─────────────────────────── */
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
+/** Garments are drawn 34 units down the board; the JSON gives true board coordinates. */
+const boardShift = (product: string) => (mockupInfo(product).garment ? BOARD.garmentOffsetY : 0);
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 export interface ExportContext {
@@ -143,7 +150,7 @@ function layerJson(l: Layer, z: number, ctx: ExportContext, mode: DesignDoc["mod
     center_y: r3((l.y - a.y) / a.h),
     rotation_deg: r1(l.rotation),
     opacity: l.opacity ?? 1,
-    board: { cx: r1(l.x), cy: r1(l.y), w: r1(w), h: r1(h) },
+    board: { cx: r1(l.x), cy: r1(l.y + boardShift(ctx.product)), w: r1(w), h: r1(h) },
   };
   if (l.type === "image") {
     const idx = l.path ? ctx.artworkPaths.indexOf(l.path) : -1;
@@ -186,11 +193,11 @@ export function buildDesignJson(doc: DesignDoc, ctx: ExportContext): DesignJson 
     mockup: info.model,
     mode: doc.mode === "full" ? "full_print" : "print_area",
     full_print_available: fullPrintAllowed(ctx.product),
-    units: "Positions x/y/w/h/center are fractions of the print area of their side (0–1, from its top-left corner; the box before rotation). font_size_rel is a fraction of the print-area height. board = mockup units (400 × 440 board).",
+    units: "Positions x/y/w/h/center are fractions of the print area of their side (0–1, from its top-left corner; the box before rotation). font_size_rel is a fraction of the print-area height. board = the 400 × 440 mockup board of the PNG previews (PNG pixels = board × 4).",
     garment_colors: ctx.garmentColors,
     print_areas: Object.fromEntries(sides.map((s) => {
       const a = printArea(ctx.product, s, doc.mode);
-      return [s, { board: { x: a.x, y: a.y, w: a.w, h: a.h }, clip: doc.mode === "full" && info.garment ? "garment_silhouette" : "rectangle" }];
+      return [s, { board: { x: a.x, y: a.y + boardShift(ctx.product), w: a.w, h: a.h }, clip: doc.mode === "full" && info.garment ? "garment_silhouette" : "rectangle" }];
     })),
     fills: doc.mode === "full"
       ? Object.fromEntries(panels.filter((p) => doc.fills[p]).map((p) => [p, fillJson(doc.fills[p]!, ctx.artworkPaths)]))

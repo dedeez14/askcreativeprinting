@@ -420,7 +420,7 @@ export default function DesignTools(props: DesignToolsProps) {
                 <>
                   <div className="grid grid-cols-2 gap-1 rounded-lg bg-forest-900/[0.06] p-0.5" role="group" aria-label="Picture fit">
                     {(["cover", "tile"] as const).map((m) => (
-                      <button key={m} type="button" aria-pressed={fill.mode === m} onClick={() => setFill(panel, { ...fill, mode: m })}
+                      <button key={m} type="button" aria-pressed={fill.mode === m} onClick={() => setFill(panel, { ...fill, mode: m, scale: 1 })}
                         className={`min-h-11 rounded-md text-sm font-body ${fill.mode === m ? ON : "text-forest-900/75"}`}>{m === "cover" ? "Fill the part" : "Repeat (tile)"}</button>
                     ))}
                   </div>

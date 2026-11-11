@@ -173,12 +173,19 @@ export function saveDoc(product: string, doc: DesignDoc | null): void {
   } catch { /* private mode / full storage: the design simply is not kept */ }
 }
 
-/** Width / height of a picture (1 when the browser cannot tell, e.g. an SVG without a size). */
-export function imageRatio(src: string): Promise<number> {
-  return new Promise((resolve) => {
+/** Width / height of a picture; an SVG without a size is read from its viewBox; 1 if nothing tells. */
+export async function imageRatio(src: string): Promise<number> {
+  const natural = await new Promise<number>((resolve) => {
     const img = new Image();
-    img.onload = () => resolve(img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : 1);
-    img.onerror = () => resolve(1);
+    img.onload = () => resolve(img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : 0);
+    img.onerror = () => resolve(0);
     img.src = src;
   });
+  if (natural > 0) return natural;
+  try {
+    const text = await (await fetch(src)).text();
+    const vb = /viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(text);
+    if (vb && Number(vb[1]) > 0 && Number(vb[2]) > 0) return Number(vb[1]) / Number(vb[2]);
+  } catch { /* not readable */ }
+  return 1;
 }

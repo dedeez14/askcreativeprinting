@@ -177,6 +177,11 @@ export default function DesignStage({
         setGuides({ v: false, h: false, angle: null });
       }
     };
+    // A finger lost to an app switch must not leave a phantom pinch behind.
+    const drop = () => { pointers.current.clear(); gesture.current = null; };
+    const onVis = () => { if (document.hidden) drop(); };
+    window.addEventListener("blur", drop);
+    document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
@@ -184,6 +189,8 @@ export default function DesignStage({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+      window.removeEventListener("blur", drop);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [interactive, toLocal, commit]);
 

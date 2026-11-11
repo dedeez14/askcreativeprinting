@@ -290,8 +290,12 @@ export default function OnlineDesign() {
     setSelectedProduct(name);
     if (name === selectedProduct) return;
     setSelectedId(null);
-    if (isEmptyDoc(doc)) {
-      const saved = loadDoc(name);
+    // A mug or a banner has only a front, and no switch to get back to it.
+    if (!hasBack(name)) setSide("front");
+    const saved = loadDoc(name);
+    const takeSaved = !!saved && !isEmptyDoc(saved) && !isEmptyDoc(doc)
+      && window.confirm(`You have a saved design for the ${name}. Open it? (Cancel brings your current design across instead.)`);
+    if (isEmptyDoc(doc) || takeSaved) {
       const next = saved ?? emptyDoc(fullPrintByDefault(name) ? "full" : "simple");
       if (next.mode === "full" && !fullPrintAllowed(name)) next.mode = "simple";
       reset(next);
@@ -596,13 +600,16 @@ export default function OnlineDesign() {
     if (sides.length === 0) return payload;
 
     const cacheKey = JSON.stringify([doc, look]);
+    let incomplete = false;
     let previews = previewCache.current?.key === cacheKey ? previewCache.current.previews : null;
     if (!previews) {
       previews = [];
       let warned = false;
       for (const s of sides) {
-        const blob = await renderSidePng(look, doc, s);
-        if (!blob) continue;
+        const out = await renderSidePng(look, doc, s);
+        if (!out) continue;
+        const { blob, missing } = out;
+        if (missing) incomplete = true;
         try {
           const up = await withRateLimitRetry(
             () => uploadOne(new File([blob], `design-preview-${s}.png`, { type: "image/png" })),
@@ -611,12 +618,14 @@ export default function OnlineDesign() {
           previews.push({ side: s, path: up.path, original_name: up.original_name, url: up.url });
         } catch { /* sent without this preview */ }
       }
-      previewCache.current = { key: cacheKey, previews };
+      // Only a complete set is reused on a retry; a failed side is drawn again next time.
+      if (previews.length === sides.length) previewCache.current = { key: cacheKey, previews };
     }
 
     const artworkPaths = (payload.artwork ?? []).map((a) => a.path);
     const editor = buildDesignJson(doc, { product, artworkPaths, garmentColors: { main: colorValue, secondary: secondaryColor || undefined } });
     editor.previews = previews.map((p) => ({ side: p.side, path: p.path, file_name: p.original_name }));
+    if (incomplete || previews.length < sides.length) editor.preview_incomplete = true;
     const summary = designSummary(doc, product);
     const notes = [payload.design.design_notes, summary].filter(Boolean).join("\n\n");
     const extra = previews.slice(1).map((p) => ({ path: p.path, original_name: p.original_name }));
@@ -640,7 +649,12 @@ export default function OnlineDesign() {
     try {
       payload = await withDesign(base);
     } catch {
-      payload = base;
+      // The enquiry still goes; the designer at least reads the design in the notes.
+      const summary = designSummary(doc, base.product);
+      payload = summary
+        ? { ...base, design: { ...base.design, design_notes: [base.design.design_notes, summary].filter(Boolean).join("\n\n").slice(0, 2000) } }
+        : base;
+      toast.warning("We could not attach the picture of your design — it is described in the notes instead.");
     } finally {
       setPreparing(false);
     }
