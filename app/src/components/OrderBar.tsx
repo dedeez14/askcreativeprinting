@@ -17,7 +17,8 @@ export interface OrderBarProps {
   title: ReactNode;
   /** Second line — the estimate in RM, or what is still missing. */
   detail?: ReactNode;
-  /** Shown when there is a step to go back to. */
+  /** Shown when there is a step to go back to (from sm up — on a phone the named steps at the top
+   * of the form are the way back, and the room goes to the price). */
   onBack?: () => void;
   backLabel?: string;
   /** The primary action. A `form` id turns it into that form's submit button. */
@@ -37,13 +38,14 @@ export default function OrderBar({
       <div className="bg-[#0d1f16] text-white lg:rounded-xl shadow-[0_-10px_30px_-12px_rgba(13,31,22,0.45)] px-3 sm:px-5 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] lg:py-3 flex items-center gap-2 sm:gap-3">
         {onBack && (
           <button type="button" onClick={onBack} aria-label={backLabel}
-            className="shrink-0 min-h-11 min-w-11 inline-flex items-center justify-center gap-1 rounded-lg border border-white/20 px-2 sm:px-3 text-sm font-body text-white/85 hover:border-white/50 hover:text-white transition-colors">
-            <ChevronLeft className="w-5 h-5" /><span className="hidden sm:inline">{backLabel}</span>
+            className="hidden sm:inline-flex shrink-0 min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg border border-white/20 px-3 text-sm font-body text-white/85 hover:border-white/50 hover:text-white transition-colors">
+            <ChevronLeft className="w-5 h-5" /><span>{backLabel}</span>
           </button>
         )}
         <div className="min-w-0 flex-1" aria-live="polite">
-          <p className="text-sm font-body font-medium text-white truncate">{title}</p>
-          {detail && <p className="text-xs sm:text-[13px] font-body text-[#d7ff00] truncate">{detail}</p>}
+          {/* Wraps rather than truncates: the estimate is the one figure the customer must not lose. */}
+          <p className="text-[13px] sm:text-sm font-body font-medium text-white leading-snug">{title}</p>
+          {detail && <p className="text-xs sm:text-[13px] font-body text-[#d7ff00] leading-snug">{detail}</p>}
         </div>
         <a href={sales.link(whatsappText)} target="_blank" rel="noopener noreferrer" aria-label="Ask us on WhatsApp"
           className="shrink-0 w-11 h-11 rounded-full bg-[#25D366] inline-flex items-center justify-center hover:brightness-95 transition">
