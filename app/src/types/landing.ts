@@ -456,6 +456,14 @@ export interface DesignSubmissionPayload {
   // Step 3 — artwork (and optionally the customer's own preview copy)
   artwork?: Array<{ path: string; original_name?: string }>;
   preview?: { path: string; original_name?: string };
+  /**
+   * The online editor's design (layers, fills, print areas — contract "ask-design-editor-v1") and the
+   * PNG previews it rendered per side. The live ERP ignores these two keys on POST /design-submissions
+   * (its rules do not list them yet) — the previews also travel in `preview` / `artwork` and a text
+   * reading in design.design_notes. The legacy quote request stores both inside product_snapshot.design.
+   */
+  editor?: Record<string, unknown>;
+  previews?: Array<{ side: 'front' | 'back'; path: string; original_name?: string; url?: string }>;
 
   // Step 4 — deadline + delivery
   event_date?: string;

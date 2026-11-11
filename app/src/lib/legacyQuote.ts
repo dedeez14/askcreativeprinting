@@ -91,8 +91,12 @@ export function designToQuoteRequest(payload: DesignSubmissionPayload): QuoteReq
       quantity: total > 0 ? total : undefined,
       deadline: payload.event_date,
       delivery_date: payload.delivery_date,
+      // The rendered front (or only) side of an online-editor design — a link the inbox can open.
+      design_image_url: payload.previews?.[0]?.url && payload.previews[0].url.length <= 1000 ? payload.previews[0].url : undefined,
       design: compact({
         design: payload.design,
+        editor: payload.editor,
+        previews: payload.previews?.map(({ side, path, original_name }) => ({ side, path, original_name })),
         placements: payload.placements,
         nameset: payload.nameset,
         artwork: payload.artwork,
