@@ -69,6 +69,9 @@ const emptyNameset = (): EnquiryNamesetEntry => ({ name: "", number: "", size: "
 
 const STEPS = ["Product", "Design", "Send"];
 
+/** RM without the ".00" of a round figure — the bar has a phone's width to say it in. */
+const rm = (n: number) => formatMoney(n).replace(/\.00$/, "");
+
 /**
  * One numbered block of the design step. The numbers are real: the blocks are the order in which a
  * customer is asked to decide things, and the bar at the foot says what is still missing.
@@ -273,7 +276,7 @@ export default function OnlineDesign() {
   // The same cached query PriceEstimateBox reads, for the one-line figure in the bar.
   const estimate = usePriceEstimate(selectedOption?.id, total).data;
   const estimateLine = estimate?.priced && estimate.total_min !== null
-    ? `Estimate ${formatMoney(estimate.total_min)}${estimate.total_max !== null && estimate.total_max > estimate.total_min ? ` – ${formatMoney(estimate.total_max)}` : ""}`
+    ? `Estimate ${rm(estimate.total_min)}${estimate.total_max !== null && estimate.total_max > estimate.total_min ? ` – ${rm(estimate.total_max)}` : ""}`
     : "";
 
   /** Instead of a dead, greyed-out Next: say what is missing and take the customer to it. */
@@ -285,7 +288,11 @@ export default function OnlineDesign() {
       document.getElementById("d-sizes")?.scrollIntoView({ block: "start" });
       return;
     }
-    if (customizeReady) goStep(3);
+    if (customizeReady) {
+      // Open the review on a side that carries the artwork, not on the bare back left from a flip.
+      setSide(artOn.front ? "front" : "back");
+      goStep(3);
+    }
   };
 
   const buildPayload = (): DesignSubmissionPayload | null => {
@@ -630,7 +637,7 @@ export default function OnlineDesign() {
               {/* Flex on a phone so the preview can stay pinned under the header while the blocks scroll
                   beneath it (a grid row would hold it in place); the two-column grid from lg up. */}
               <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(300px,400px)_1fr] lg:gap-10 lg:items-start">
-                <div className="sticky top-16 lg:top-28 z-20 -mx-5 px-5 pt-1 pb-3 bg-white/95 backdrop-blur md:-mx-10 md:px-10 lg:mx-0 lg:p-0 lg:bg-transparent lg:backdrop-blur-none lg:space-y-3">
+                <div className="sticky top-16 lg:top-28 z-20 -mx-5 px-5 pt-1 pb-3 bg-white/95 backdrop-blur shadow-[0_10px_14px_-12px_rgba(13,31,22,0.35)] md:-mx-10 md:px-10 lg:mx-0 lg:p-0 lg:bg-transparent lg:backdrop-blur-none lg:shadow-none lg:space-y-3">
                   <StudioPreview
                     product={selectedProduct ?? "T-Shirt"}
                     collar={collarValue}
@@ -644,7 +651,7 @@ export default function OnlineDesign() {
                     side={side} onSideChange={setSide}
                     caption={selectedProduct ?? undefined}
                     sub={[collarShown, total > 0 ? `${total} pcs` : null].filter(Boolean).join(" · ") || category}
-                    height="h-[170px] sm:h-[240px] lg:h-[clamp(260px,calc(100vh-430px),420px)]"
+                    height="h-[170px] sm:h-[240px] lg:h-[clamp(240px,calc(100vh-520px),420px)]"
                     collapsible
                   />
                   <p className="hidden lg:block text-xs font-body text-forest-900/55 px-1">
@@ -897,13 +904,13 @@ export default function OnlineDesign() {
                 Leave your details and our sales team sends your quotation in RM, usually within 24 hours.
               </p>
               <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,360px)_1fr] gap-8 lg:gap-10 lg:items-start">
-                <aside className="space-y-4 lg:sticky lg:top-28">
+                <aside className="space-y-4">
                   <StudioPreview
                     product={selectedProduct ?? "T-Shirt"} collar={collarValue} color={colorValue}
                     secondaryColor={secondaryColor} sleeve={sleeveValue} fabric={fabricValue} size={previewSize}
                     artworkUrl={artworkPreviewUrl} artOn={artOn} side={side} onSideChange={setSide}
                     caption={selectedProduct ?? undefined} sub={category}
-                    height="h-[200px] sm:h-[260px]"
+                    height="h-[150px] sm:h-[240px]"
                   />
                   <div className="rounded-lg border border-forest-900/10">
                     {summary}
