@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
+import { ROUTER_BASENAME } from "./lib/paths";
 import { useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
@@ -46,7 +47,7 @@ function AnalyticsBootstrap() {
 
 function App() {
   return (
-    <Router>
+    <Router basename={ROUTER_BASENAME}>
       <ScrollToTop />
       <AnalyticsBootstrap />
       <Layout>

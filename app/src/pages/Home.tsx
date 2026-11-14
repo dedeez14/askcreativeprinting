@@ -28,6 +28,7 @@ import { useGallery } from "../hooks/useGallery";
 import { useBrands } from "../hooks/useBrands";
 import { useSettings } from "../hooks/useSettings";
 import { useSalesWhatsApp } from "../hooks/useSalesWhatsApp";
+import { withBase } from "../lib/paths";
 
 // Map icon name (from API) → Lucide component
 const ICON_MAP: Record<string, any> = {
@@ -61,12 +62,12 @@ const servicesData = [
 
 /* ─── Gallery Data ─── */
 const galleryItems = [
-  { image: "/images/real-jersey-design.jpg", category: "Sublimation Jersey", title: "Custom SUBLAB Volleyball Jersey" },
-  { image: "/images/real-jersey-rack.jpg", category: "Custom Jersey", title: "SUBLAB Basketball Jersey Collection" },
-  { image: "/images/real-screen-print.jpg", category: "T-Shirt Printing", title: "Screen Printing Production" },
-  { image: "/images/real-embroidery.jpg", category: "Embroidery", title: "Multi-Head SEWMEX Embroidery" },
-  { image: "/images/real-digital-print.jpg", category: "Digital Printing", title: "Large-Format Banner Printing" },
-  { image: "/images/real-mugs.jpg", category: "Premium Gifts", title: "Branded Mugs - Smart Talks Sabah" },
+  { image: withBase("/images/real-jersey-design.jpg"), category: "Sublimation Jersey", title: "Custom SUBLAB Volleyball Jersey" },
+  { image: withBase("/images/real-jersey-rack.jpg"), category: "Custom Jersey", title: "SUBLAB Basketball Jersey Collection" },
+  { image: withBase("/images/real-screen-print.jpg"), category: "T-Shirt Printing", title: "Screen Printing Production" },
+  { image: withBase("/images/real-embroidery.jpg"), category: "Embroidery", title: "Multi-Head SEWMEX Embroidery" },
+  { image: withBase("/images/real-digital-print.jpg"), category: "Digital Printing", title: "Large-Format Banner Printing" },
+  { image: withBase("/images/real-mugs.jpg"), category: "Premium Gifts", title: "Branded Mugs - Smart Talks Sabah" },
 ];
 
 /* ─── Client Names ─── */
@@ -97,12 +98,12 @@ const steps = [
 
 /* ─── Production Images ─── */
 const productionImages = [
-  { src: "/images/real-printer-jersey.jpg", alt: "TS55-1800 sublimation printer printing jersey designs" },
-  { src: "/images/real-heat-press.jpg", alt: "Large-format heat transfer calendering machine" },
-  { src: "/images/real-laser-cut.jpg", alt: "UNIKONEX laser cutting printed jerseys" },
-  { src: "/images/real-embroidery-close.jpg", alt: "SEWMEX embroidery machine stitching logos" },
-  { src: "/images/real-jersey-showroom.jpg", alt: "Jersey showroom with colourful collections" },
-  { src: "/images/real-printer-fleet.jpg", alt: "Sublimation printing facility with multiple printers" },
+  { src: withBase("/images/real-printer-jersey.jpg"), alt: "TS55-1800 sublimation printer printing jersey designs" },
+  { src: withBase("/images/real-heat-press.jpg"), alt: "Large-format heat transfer calendering machine" },
+  { src: withBase("/images/real-laser-cut.jpg"), alt: "UNIKONEX laser cutting printed jerseys" },
+  { src: withBase("/images/real-embroidery-close.jpg"), alt: "SEWMEX embroidery machine stitching logos" },
+  { src: withBase("/images/real-jersey-showroom.jpg"), alt: "Jersey showroom with colourful collections" },
+  { src: withBase("/images/real-printer-fleet.jpg"), alt: "Sublimation printing facility with multiple printers" },
 ];
 
 /**
@@ -277,7 +278,7 @@ export default function Home() {
           <img
             fetchPriority="high"
             decoding="async"
-            src="/images/real-hero-printers.jpg"
+            src={withBase("/images/real-hero-printers.jpg")}
             alt="ASK Creative TS55-1800 sublimation printer fleet in Kota Kinabalu"
             className="w-full h-full object-cover"
           />
@@ -403,7 +404,7 @@ export default function Home() {
               <img
                 loading="lazy"
                 decoding="async"
-                src="/images/real-building.jpg"
+                src={withBase("/images/real-building.jpg")}
                 alt="ASK Creative headquarters at Kepayan Perdana, Kota Kinabalu"
                 className="w-full rounded-lg object-cover aspect-[4/3]"
               />
@@ -477,7 +478,7 @@ export default function Home() {
               <img
                 loading="lazy"
                 decoding="async"
-                src="/images/real-designer.jpg"
+                src={withBase("/images/real-designer.jpg")}
                 alt="ASK Creative designer working on custom jersey designs"
                 className="w-full rounded-lg object-cover aspect-[4/3]"
               />

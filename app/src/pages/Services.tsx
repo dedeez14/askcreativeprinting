@@ -6,6 +6,7 @@ import { useFeatures } from "../hooks/useFeatures";
 import { usePages } from "../hooks/usePages";
 import { formatMoney } from "../lib/format";
 import SEOHead from "../components/SEOHead";
+import { withBase } from "../lib/paths";
 
 export default function Services() {
   const { data: apiFeatures } = useFeatures();
@@ -23,7 +24,7 @@ export default function Services() {
         title: p.title,
         shortTitle: p.title,
         description: p.excerpt ?? "",
-        image: p.image_url ?? p.product?.featured_image ?? "/images/real-printer-jersey.jpg",
+        image: p.image_url ?? p.product?.featured_image ?? withBase("/images/real-printer-jersey.jpg"),
         startingPrice: p.starting_price,
       }));
     }
@@ -35,7 +36,7 @@ export default function Services() {
           title: f.title,
           shortTitle: f.title,
           description: f.description || "",
-          image: f.image_path?.startsWith("/") ? f.image_path : (f.image_url || "/images/real-printer-jersey.jpg"),
+          image: f.image_path?.startsWith("/") ? f.image_path : (f.image_url || withBase("/images/real-printer-jersey.jpg")),
         };
       });
     }

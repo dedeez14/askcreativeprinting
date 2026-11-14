@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import SEOHead from "../components/SEOHead";
 import { useGallery } from "../hooks/useGallery";
+import { withBase } from "../lib/paths";
 
 /**
  * 06 §10 p.4 — "Each portfolio entry should include product type, client type if allowed, quantity,
@@ -8,12 +9,12 @@ import { useGallery } from "../hooks/useGallery";
  * Gallery), where those fields are now part of the form; these fallbacks are the offline copy.
  */
 const FALLBACK_ITEMS = [
-  { image: "/images/real-jersey-design.jpg", category: "Sublimation Jersey", title: "Custom SUBLAB Volleyball Jersey #10" },
-  { image: "/images/real-jersey-showroom.jpg", category: "Sublimation Jersey", title: "Jersey Showroom Collection" },
-  { image: "/images/real-jersey-rack.jpg", category: "Custom Jersey", title: "SUBLAB Basketball Jersey #23" },
-  { image: "/images/real-embroidery-close.jpg", category: "Embroidery", title: "SEWMEX Logo Embroidery" },
-  { image: "/images/real-screen-print.jpg", category: "T-Shirt Printing", title: "Screen Printing Production Line" },
-  { image: "/images/real-heat-press.jpg", category: "Sublimation Printing", title: "Heat Transfer Calendering" },
+  { image: withBase("/images/real-jersey-design.jpg"), category: "Sublimation Jersey", title: "Custom SUBLAB Volleyball Jersey #10" },
+  { image: withBase("/images/real-jersey-showroom.jpg"), category: "Sublimation Jersey", title: "Jersey Showroom Collection" },
+  { image: withBase("/images/real-jersey-rack.jpg"), category: "Custom Jersey", title: "SUBLAB Basketball Jersey #23" },
+  { image: withBase("/images/real-embroidery-close.jpg"), category: "Embroidery", title: "SEWMEX Logo Embroidery" },
+  { image: withBase("/images/real-screen-print.jpg"), category: "T-Shirt Printing", title: "Screen Printing Production Line" },
+  { image: withBase("/images/real-heat-press.jpg"), category: "Sublimation Printing", title: "Heat Transfer Calendering" },
 ];
 
 export default function Portfolio() {
@@ -139,7 +140,7 @@ export default function Portfolio() {
             Have a Project in Mind?
           </h3>
           <a
-            href="/quotation"
+            href={withBase("/quotation")}
             className="inline-block bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors"
           >
             Request a Quotation

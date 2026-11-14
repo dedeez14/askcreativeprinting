@@ -8,6 +8,7 @@ import { useSettings } from "../hooks/useSettings";
 import { usePage } from "../hooks/usePages";
 import { useQuoteRequest } from "../hooks/useQuoteRequest";
 import { formatMoney } from "../lib/format";
+import { withBase } from "../lib/paths";
 
 const FALLBACK_SALES_TEAM = [
   { name: "Mrs. Dayang", phone: "60102174774" },
@@ -53,7 +54,7 @@ export default function ServiceDetail() {
     description: page?.excerpt ?? fallback?.description ?? "",
     longDescription: page?.content ?? fallback?.longDescription ?? "",
     features: fallback?.features ?? [],
-    image: page?.image_url ?? page?.product?.featured_image ?? fallback?.image ?? "/images/real-printer-jersey.jpg",
+    image: page?.image_url ?? page?.product?.featured_image ?? fallback?.image ?? withBase("/images/real-printer-jersey.jpg"),
     products: fallback?.products,
   };
 

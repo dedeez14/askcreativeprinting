@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import SEOHead from "../components/SEOHead";
 import { useBrands } from "../hooks/useBrands";
+import { withBase } from "../lib/paths";
 
 const FALLBACK_CLIENTS = [
   { name: "PETRA", category: "Corporate" },
@@ -114,7 +115,7 @@ export default function Clients() {
             Whether you are a government agency, corporation, school, or sports team — we are ready to serve your printing needs.
           </p>
           <a
-            href="/quotation"
+            href={withBase("/quotation")}
             className="inline-block bg-[#d7ff00] text-[#0d1f16] px-6 py-3 rounded-md text-sm font-body font-medium hover:bg-[#e5ff4d] transition-colors"
           >
             Get a Quotation

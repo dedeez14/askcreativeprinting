@@ -3,6 +3,7 @@ import { Eye, Target, Printer, Image, Flame, Scissors, PenTool, CheckCircle } fr
 import SEOHead from "../components/SEOHead";
 import { useAbout } from "../hooks/useAbout";
 import { useSettings } from "../hooks/useSettings";
+import { withBase } from "../lib/paths";
 
 const equipment = [
   { icon: Printer, title: "Sublimation Printers", desc: "Large-format sublimation printers for vibrant full-colour fabric printing." },
@@ -74,7 +75,7 @@ export default function About() {
             </div>
             <div>
               <img
-                src="/images/real-storefront.jpg"
+                src={withBase("/images/real-storefront.jpg")}
                 alt="ASK Creative storefront - Sabah Custom Jersey Expert"
                 className="w-full rounded-lg object-cover aspect-[4/3]"
               />

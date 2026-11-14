@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar, Tag } from "lucide-react";
 import SEOHead from "../components/SEOHead";
 import { useBlog, useBlogs } from "../hooks/useBlogs";
 import { formatDate } from "../lib/format";
+import { withBase } from "../lib/paths";
 
 export default function BlogDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -127,7 +128,7 @@ export default function BlogDetail() {
                 >
                   <div className="overflow-hidden">
                     <img
-                      src={r.image_url || r.image_path || "/images/blog-1.jpg"}
+                      src={r.image_url || r.image_path || withBase("/images/blog-1.jpg")}
                       alt={r.title}
                       className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
                     />

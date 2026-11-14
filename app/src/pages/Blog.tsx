@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import SEOHead from "../components/SEOHead";
 import { useBlogs } from "../hooks/useBlogs";
 import { formatDate } from "../lib/format";
+import { withBase } from "../lib/paths";
 
 interface BlogPost {
   image: string;
@@ -15,9 +16,9 @@ interface BlogPost {
 }
 
 const FALLBACK_POSTS: BlogPost[] = [
-  { image: "/images/blog-1.jpg", category: "Jersey Design", title: "How to Design a Custom Football Jersey", excerpt: "Essential steps to create a stunning custom football jersey for your team.", date: "May 15, 2025" },
-  { image: "/images/blog-2.jpg", category: "Printing Tips", title: "Sublimation vs Screen Printing", excerpt: "Key differences between sublimation and screen printing.", date: "April 28, 2025" },
-  { image: "/images/blog-3.jpg", category: "Corporate Gifts", title: "Top 10 Corporate Gift Ideas for Events in Sabah", excerpt: "Most popular corporate gift options for clients and partners.", date: "April 10, 2025" },
+  { image: withBase("/images/blog-1.jpg"), category: "Jersey Design", title: "How to Design a Custom Football Jersey", excerpt: "Essential steps to create a stunning custom football jersey for your team.", date: "May 15, 2025" },
+  { image: withBase("/images/blog-2.jpg"), category: "Printing Tips", title: "Sublimation vs Screen Printing", excerpt: "Key differences between sublimation and screen printing.", date: "April 28, 2025" },
+  { image: withBase("/images/blog-3.jpg"), category: "Corporate Gifts", title: "Top 10 Corporate Gift Ideas for Events in Sabah", excerpt: "Most popular corporate gift options for clients and partners.", date: "April 10, 2025" },
 ];
 
 export default function Blog() {
@@ -26,7 +27,7 @@ export default function Blog() {
   const blogPosts: BlogPost[] = useMemo(() => {
     if (apiBlogs && apiBlogs.length > 0) {
       return apiBlogs.map((b: any) => ({
-        image: b.image_url || b.image_path || "/images/blog-1.jpg",
+        image: b.image_url || b.image_path || withBase("/images/blog-1.jpg"),
         category: b.category || "General",
         title: b.title,
         excerpt: b.excerpt || "",

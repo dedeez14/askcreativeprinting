@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, ChevronDown, Phone, MessageCircle, Search } from "lucide-react";
 import { useSettings } from "../hooks/useSettings";
+import { withBase } from "../lib/paths";
 
 type NavChild = { label: string; href: string };
 type NavItem = { label: string; href: string; children?: NavChild[] };
@@ -45,7 +46,7 @@ export default function Header() {
   const { data: settings } = useSettings();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const logoUrl = settings?.logo_url || "/images/ask-logo.png";
+  const logoUrl = settings?.logo_url || withBase("/images/ask-logo.png");
   const waPhone = settings?.contact_phone?.replace(/\D/g, "") || "60102174774";
   const phoneDisplay = settings?.contact_phone || "088 205 423";
 

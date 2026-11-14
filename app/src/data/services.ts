@@ -1,3 +1,4 @@
+import { withBase } from "../lib/paths";
 export interface Service {
   slug: string;
   title: string;
@@ -37,7 +38,7 @@ export const services: Service[] = [
       "Durable, wash-resistant prints",
       "Design support available"
     ],
-    image: "/images/real-printer-jersey.jpg",
+    image: withBase("/images/real-printer-jersey.jpg"),
     icon: "Printer",
     products: ["Jerseys", "Pants", "Lanyards", "Flags", "Aprons", "Table Cloths", "Towels", "Pennants"]
   },
@@ -56,7 +57,7 @@ export const services: Service[] = [
       "Multiple collar styles",
       "Size breakdown support"
     ],
-    image: "/images/real-jersey-design.jpg",
+    image: withBase("/images/real-jersey-design.jpg"),
     icon: "Shirt",
     products: ["Football Jersey", "Running Singlet", "Basketball Jersey", "Baseball Jersey", "Corporate Sports Jersey", "Event Jersey", "Teamwear Set", "Jersey with Pants"]
   },
@@ -75,7 +76,7 @@ export const services: Service[] = [
       "Teamwear & event apparel",
       "Embroidery & printing options"
     ],
-    image: "/images/real-sewing.jpg",
+    image: withBase("/images/real-sewing.jpg"),
     icon: "Vest",
     products: ["Corporate Shirt", "Polo Shirt", "Jacket", "Hoodie", "Windbreaker", "Uniform", "Teamwear"]
   },
@@ -94,7 +95,7 @@ export const services: Service[] = [
       "Various T-shirt brands",
       "Quick delivery available"
     ],
-    image: "/images/real-screen-print.jpg",
+    image: withBase("/images/real-screen-print.jpg"),
     icon: "Scissors"
   },
   {
@@ -112,7 +113,7 @@ export const services: Service[] = [
       "Metallic thread options",
       "Durable, professional finish"
     ],
-    image: "/images/real-embroidery.jpg",
+    image: withBase("/images/real-embroidery.jpg"),
     icon: "PenTool"
   },
   {
@@ -130,7 +131,7 @@ export const services: Service[] = [
       "Quick turnaround",
       "Design support available"
     ],
-    image: "/images/real-digital-print.jpg",
+    image: withBase("/images/real-digital-print.jpg"),
     icon: "Image"
   },
   {
@@ -148,7 +149,7 @@ export const services: Service[] = [
       "Weather-resistant printing",
       "Standee displays"
     ],
-    image: "/images/real-digital-print.jpg",
+    image: withBase("/images/real-digital-print.jpg"),
     icon: "Flag"
   },
   {
@@ -166,7 +167,7 @@ export const services: Service[] = [
       "Keychains & lanyards",
       "Wristbands & ID cards"
     ],
-    image: "/images/real-mugs.jpg",
+    image: withBase("/images/real-mugs.jpg"),
     icon: "Gift"
   },
   {
@@ -184,7 +185,7 @@ export const services: Service[] = [
       "Kids and adult measurement charts",
       "Nationwide delivery from Sabah"
     ],
-    image: "/images/real-jersey-design.jpg",
+    image: withBase("/images/real-jersey-design.jpg"),
     icon: "Shirt",
     products: ["Jersey", "Singlet", "Shorts", "Trackset", "Warm-Up", "Team Kit"]
   },
@@ -203,7 +204,7 @@ export const services: Service[] = [
       "A single mockup approval for the whole order",
       "Delivery planned against your event date"
     ],
-    image: "/images/real-jersey-showroom.jpg",
+    image: withBase("/images/real-jersey-showroom.jpg"),
     icon: "Users",
     products: ["Sports Day Jersey", "Family Day Jersey", "Tournament Jersey", "Event T-Shirt", "Class Jersey"]
   }

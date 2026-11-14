@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { MapPin, Phone, Mail, Instagram, Facebook } from "lucide-react";
 import { useSettings } from "../hooks/useSettings";
+import { withBase } from "../lib/paths";
 
 const quickLinks = [
   { label: "Home", href: "/" },
@@ -42,7 +43,7 @@ const FALLBACK_SALES_TEAM = [
 
 export default function Footer() {
   const { data: settings } = useSettings();
-  const logoUrl = settings?.logo_url || "/images/ask-logo.png";
+  const logoUrl = settings?.logo_url || withBase("/images/ask-logo.png");
   const tagline = settings?.site_tagline || "Custom Printing & Sublimation Jersey Specialist in Kota Kinabalu, Sabah.";
   const instagramUrl = settings?.social?.instagram || "https://www.instagram.com/askcreativeprinting";
   const facebookUrl = settings?.social?.facebook || "https://www.facebook.com/ASKCreativePrintingServices";
