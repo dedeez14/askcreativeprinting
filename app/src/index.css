@@ -1,5 +1,67 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
-@import url('https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap');
+/* Self-hosted (public/fonts): the two third-party @import chains blocked the first paint on mobile.
+ * DM Sans 400 and Clash Display 500 (body and headings) are preloaded in index.html. Clash Display is
+ * from Fontshare (ITF Free Font License, self-hosting allowed); DM Sans is the @fontsource latin subset. */
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/dm-sans-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/dm-sans-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/dm-sans-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Clash Display';
+  src: url('/fonts/clash-display-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Clash Display';
+  src: url('/fonts/clash-display-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Clash Display';
+  src: url('/fonts/clash-display-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Local Arial resized to each web font's metrics (measured with fontkit on the files above), so the
+   swap from fallback to web font does not reflow the hero text — no layout shift. */
+@font-face {
+  font-family: 'Clash Display Fallback';
+  src: local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 97.7%;
+  ascent-override: 91.09%;
+  descent-override: 25.59%;
+  line-gap-override: 9.21%;
+}
+@font-face {
+  font-family: 'DM Sans Fallback';
+  src: local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 104.06%;
+  ascent-override: 95.33%;
+  descent-override: 29.79%;
+  line-gap-override: 0%;
+}
 
 @tailwind base;
 @tailwind components;
@@ -57,10 +119,10 @@
 
 @layer utilities {
   .font-display {
-    font-family: 'Clash Display', sans-serif;
+    font-family: 'Clash Display', 'Clash Display Fallback', sans-serif;
   }
   .font-body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'DM Sans', 'DM Sans Fallback', sans-serif;
   }
 }
 
@@ -115,4 +177,35 @@
 ::selection {
   background: rgba(215, 255, 0, 0.3);
   color: #0d1f16;
+}
+
+/* Scroll reveal (hooks/useRevealOnScroll.ts): classes are added after render, so nothing is hidden
+   without JavaScript. Easing = GSAP's power3.out, which this replaced. An animation with fill "backwards"
+   (not a transition) so it never touches the cards' own hover transitions once it has finished. */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(var(--reveal-y, 40px)); }
+}
+.reveal:not(.is-revealed),
+.reveal-stagger:not(.is-revealed) > * { opacity: 0; }
+.reveal.is-revealed { animation: reveal-up 0.7s cubic-bezier(0.215, 0.61, 0.355, 1) backwards; }
+.reveal-stagger.is-revealed > * {
+  --reveal-y: 30px;
+  animation: reveal-up 0.6s cubic-bezier(0.215, 0.61, 0.355, 1) backwards;
+}
+.reveal-stagger.is-revealed > *:nth-child(2) { animation-delay: 0.1s; }
+.reveal-stagger.is-revealed > *:nth-child(3) { animation-delay: 0.2s; }
+.reveal-stagger.is-revealed > *:nth-child(4) { animation-delay: 0.3s; }
+.reveal-stagger.is-revealed > *:nth-child(5) { animation-delay: 0.4s; }
+.reveal-stagger.is-revealed > *:nth-child(6) { animation-delay: 0.5s; }
+.reveal-stagger.is-revealed > *:nth-child(7) { animation-delay: 0.6s; }
+.reveal-stagger.is-revealed > *:nth-child(8) { animation-delay: 0.7s; }
+.reveal-stagger.is-revealed > *:nth-child(9) { animation-delay: 0.8s; }
+.reveal-stagger.is-revealed > *:nth-child(10) { animation-delay: 0.9s; }
+.reveal-stagger.is-revealed > *:nth-child(11) { animation-delay: 1.0s; }
+.reveal-stagger.is-revealed > *:nth-child(12) { animation-delay: 1.1s; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal:not(.is-revealed),
+  .reveal-stagger:not(.is-revealed) > * { opacity: 1; }
+  .reveal.is-revealed,
+  .reveal-stagger.is-revealed > * { animation: none; }
 }

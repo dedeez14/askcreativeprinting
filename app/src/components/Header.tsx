@@ -45,7 +45,7 @@ export default function Header() {
   const { data: settings } = useSettings();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const logoUrl = settings?.logo_url || "/images/ask-logo.png";
+  const logoUrl = settings?.logo_url || "/images/ask-logo-header.webp"; // 1 kB copy of ask-logo.png (2954 px, 216 kB)
   const waPhone = settings?.contact_phone?.replace(/\D/g, "") || "60102174774";
   const phoneDisplay = settings?.contact_phone || "088 205 423";
 
@@ -132,7 +132,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 mx-auto">
+          <nav aria-label="Main" className="hidden lg:flex items-center gap-4 xl:gap-6 mx-auto">
             {navLinks.map((link) => {
               const active = link.children ? isChildActive(link.children) || isActive(link.href) : isActive(link.href);
               if (link.children) {
@@ -261,8 +261,12 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer — inert while closed, so it is out of the focus order and the accessibility tree. */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        inert={!mobileOpen}
         className={`fixed inset-0 z-40 lg:hidden transition-opacity duration-300 ${
           mobileOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
         }`}
@@ -275,7 +279,7 @@ export default function Header() {
             mobileOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
-          <nav className="flex flex-col">
+          <nav aria-label="Mobile" className="flex flex-col">
             {navLinks.map((link, i) => {
               const active = link.children ? isChildActive(link.children) || isActive(link.href) : isActive(link.href);
               const divider = i > 0 ? "border-t border-white/8" : "";

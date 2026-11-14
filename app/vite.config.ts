@@ -6,7 +6,9 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 // https://vite.dev/config/
 export default defineConfig({
   base: '/',
-  plugins: [inspectAttr(), react()],
+  // The inspector tags every JSX element with code-path="file:line" for the dev overlay; in a production
+  // build that was ~1,200 attributes of dead weight in the bundle and the DOM.
+  plugins: [{ ...inspectAttr(), apply: 'serve' as const }, react()],
   server: {
     port: 3000,
   },

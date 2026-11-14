@@ -103,8 +103,8 @@ module.exports = {
         "off-white": "#F0F4F1",
       },
       fontFamily: {
-        display: ["Clash Display", "sans-serif"],
-        body: ["DM Sans", "sans-serif"],
+        display: ["Clash Display", "Clash Display Fallback", "sans-serif"],
+        body: ["DM Sans", "DM Sans Fallback", "sans-serif"],
       },
       borderRadius: {
         xl: "calc(var(--radius) + 4px)",

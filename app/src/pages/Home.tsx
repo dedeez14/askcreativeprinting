@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   MapPin,
   Shirt,
@@ -28,6 +26,7 @@ import { useGallery } from "../hooks/useGallery";
 import { useBrands } from "../hooks/useBrands";
 import { useSettings } from "../hooks/useSettings";
 import { useSalesWhatsApp } from "../hooks/useSalesWhatsApp";
+import { useRevealOnScroll } from "../hooks/useRevealOnScroll";
 
 // Map icon name (from API) → Lucide component
 const ICON_MAP: Record<string, any> = {
@@ -36,7 +35,6 @@ const ICON_MAP: Record<string, any> = {
   MapPin, Factory, Users, Award, Layers, Building2, MessageCircle, Palette, Heart,
 };
 
-gsap.registerPlugin(ScrollTrigger);
 
 
 
@@ -211,51 +209,8 @@ export default function Home() {
     return clients;
   }, [apiBrands]);
 
-  useEffect(() => {
-    // Entrance animations for sections below hero
-    const sections = document.querySelectorAll("[data-animate]");
-    sections.forEach((section) => {
-      gsap.fromTo(
-        section,
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.7,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: section,
-            start: "top 85%",
-          },
-        }
-      );
-    });
-
-    // Stagger children
-    const staggerContainers = document.querySelectorAll("[data-stagger]");
-    staggerContainers.forEach((container) => {
-      const children = container.children;
-      gsap.fromTo(
-        children,
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.6,
-          ease: "power3.out",
-          stagger: 0.1,
-          scrollTrigger: {
-            trigger: container,
-            start: "top 85%",
-          },
-        }
-      );
-    });
-
-    return () => {
-      ScrollTrigger.getAll().forEach((t) => t.kill());
-    };
-  }, []);
+  // Entrance animations for sections below the hero.
+  useRevealOnScroll();
 
   return (
     <>
@@ -274,10 +229,12 @@ export default function Home() {
       >
         {/* Background Image - TS55-1800 Printer Fleet */}
         <div className="absolute inset-0 w-full h-full">
+          {/* The page's LCP element: WebP (78 kB vs 121 kB JPEG), in the prerendered HTML, high priority. */}
           <img
             fetchPriority="high"
-            decoding="async"
-            src="/images/real-hero-printers.jpg"
+            src="/images/real-hero-printers.webp"
+            width={1200}
+            height={900}
             alt="ASK Creative TS55-1800 sublimation printer fleet in Kota Kinabalu"
             className="w-full h-full object-cover"
           />
@@ -292,11 +249,9 @@ export default function Home() {
             <p className="text-[#d7ff00] text-sm font-body uppercase tracking-[0.1em] mb-4">
               ASK Creative Sdn Bhd
             </p>
-            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-[80px] text-white uppercase leading-[0.95] mb-2">
-              Custom Printing
-            </h1>
             <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-[80px] text-white uppercase leading-[0.95] mb-6">
-              & Jersey Specialist
+              <span className="block mb-2">Custom Printing</span>
+              <span className="block">& Jersey Specialist</span>
             </h1>
             <p className="text-white/70 text-base md:text-lg font-body max-w-[560px] mx-auto mb-8">
               Sublimation printing, custom apparel, embroidery, and premium gifts in Kota Kinabalu, Sabah.
@@ -338,7 +293,7 @@ export default function Home() {
 
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 animate-bounce">
-          <span className="text-white/40 text-xs font-body uppercase tracking-wider">Scroll</span>
+          <span className="text-white/60 text-xs font-body uppercase tracking-wider">Scroll</span>
           <div className="w-5 h-8 border-2 border-white/30 rounded-full flex items-start justify-center p-1">
             <div className="w-1 h-2 bg-[#d7ff00] rounded-full" />
           </div>
@@ -388,7 +343,7 @@ export default function Home() {
               <h2 className="font-display text-3xl md:text-4xl lg:text-5xl text-forest-900 uppercase leading-[0.95] mb-6">
                 Your Trusted Printing & Custom Apparel Partner in Sabah
               </h2>
-              <p className="text-forest-900/70 text-base font-body leading-relaxed mb-6">
+              <p className="text-forest-900/80 text-base font-body leading-relaxed mb-6">
                 ASK Creative is a Kota Kinabalu-based printing and apparel production company offering sublimation jersey printing, custom T-shirt printing, embroidery, digital printing, premium gifts and corporate merchandise. With a wide range of services and production capability, we help businesses, teams, schools and organizations create high-quality custom products.
               </p>
               <Link
@@ -496,7 +451,7 @@ export default function Home() {
             <h2 className="font-display text-3xl md:text-4xl lg:text-5xl text-forest-900 uppercase leading-[0.95] mb-4">
               From Design to Production, We Handle the Details
             </h2>
-            <p className="text-forest-900/70 text-base font-body">
+            <p className="text-forest-900/80 text-base font-body">
               ASK Creative supports customers with artwork preparation, sublimation printing, digital printing, heat press, cutting, sewing, finishing and embroidery.
             </p>
           </div>
@@ -569,7 +524,7 @@ export default function Home() {
             <h2 className="font-display text-3xl md:text-4xl lg:text-5xl text-forest-900 uppercase leading-[0.95] mb-4">
               Trusted by Organizations Across Sabah
             </h2>
-            <p className="text-forest-900/70 text-base font-body max-w-[560px] mx-auto">
+            <p className="text-forest-900/80 text-base font-body max-w-[560px] mx-auto">
               ASK Creative has worked with companies, agencies, schools, teams and organizations across different industries.
             </p>
           </div>
@@ -579,7 +534,7 @@ export default function Home() {
                 key={i}
                 className="flex items-center justify-center h-20 border border-forest-900/15 rounded-lg hover:border-forest-900 hover:bg-forest-50 transition-colors duration-200"
               >
-                <span className="text-forest-900/70 text-sm font-body font-medium uppercase tracking-wider">
+                <span className="text-forest-900/80 text-sm font-body font-medium uppercase tracking-wider">
                   {client}
                 </span>
               </div>
@@ -616,7 +571,7 @@ export default function Home() {
               <div key={i} className="flex flex-col">
                 <item.icon className="w-8 h-8 text-teal-500 mb-4" />
                 <h3 className="text-forest-900 text-base font-body font-medium mb-2">{item.title}</h3>
-                <p className="text-forest-900/60 text-sm font-body leading-relaxed">{item.desc}</p>
+                <p className="text-forest-900/80 text-sm font-body leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
