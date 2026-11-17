@@ -21,6 +21,7 @@ import { toFileRef, type UploadedFileWithRole } from "../hooks/useFileUpload";
 import { ENQUIRY_V2 } from "../lib/features";
 import { submitErrorMessage } from "../lib/submitError";
 import { attributionFields } from "../lib/attribution";
+import { captureChatRef } from "../lib/chatRef";
 import { ADULT_SIZES, KIDS_SIZES, cleanSizes, sizeLabel, sumSizes, type SizeMatrix } from "../lib/sizes";
 import { isoDate } from "../lib/format";
 import type {
@@ -140,6 +141,15 @@ export default function Quotation() {
   const [company, setCompany] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  // The sales team's chat form asks these too (17-Nov-2026) — all optional.
+  const [attn, setAttn] = useState("");
+  const [icTin, setIcTin] = useState("");
+  const [tradingLicence, setTradingLicence] = useState("");
+  // Opened from a link sales sent in WhatsApp: the chat's code (lib/chatRef), read once on mount.
+  const chatRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    chatRef.current = captureChatRef();
+  }, []);
 
   // Product
   /*
@@ -257,6 +267,10 @@ export default function Quotation() {
       email: email.trim(),
       phone: phone.trim(),
       company_name: company.trim() || undefined,
+      attn: attn.trim() || undefined,
+      ic_tin_no: icTin.trim() || undefined,
+      trading_licence_no: tradingLicence.trim() || undefined,
+      chat_ref: chatRef.current,
 
       product_category: category,
       product_type: productType,
@@ -377,6 +391,18 @@ export default function Quotation() {
                     <div>
                       <label className={LABEL} htmlFor="q-email">Email *</label>
                       <input id="q-email" type="email" className={FIELD} value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-attn">Attn</label>
+                      <input id="q-attn" className={FIELD} value={attn} onChange={(e) => setAttn(e.target.value)} maxLength={120} placeholder="Optional — who the quotation is addressed to" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-ic-tin">IC / TIN no.</label>
+                      <input id="q-ic-tin" className={FIELD} value={icTin} onChange={(e) => setIcTin(e.target.value)} maxLength={40} placeholder="Optional" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="q-licence">Company trading licence</label>
+                      <input id="q-licence" className={FIELD} value={tradingLicence} onChange={(e) => setTradingLicence(e.target.value)} maxLength={60} placeholder="Optional" />
                     </div>
                   </div>
                 </div>
