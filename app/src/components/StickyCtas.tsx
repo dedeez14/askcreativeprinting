@@ -31,12 +31,11 @@ export default function StickyCtas() {
   if (OWN_ACTION_BAR.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3" data-sticky-ctas>
+    <aside aria-label="Quick contact" className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3" data-sticky-ctas>
       {/* Quotation — phone and tablet widths only */}
       <Link
         to="/quotation"
         className="lg:hidden flex items-center gap-2 bg-[#d7ff00] text-[#0d1f16] rounded-full pl-4 pr-5 py-3 shadow-lg shadow-black/20 font-body text-sm font-medium hover:brightness-95 transition"
-        aria-label="Get a quotation"
         data-sticky-quotation
       >
         <FileText className="w-5 h-5" />
@@ -63,6 +62,6 @@ export default function StickyCtas() {
       >
         <MessageCircle className="w-7 h-7 text-white fill-white" />
       </a>
-    </div>
+    </aside>
   );
 }

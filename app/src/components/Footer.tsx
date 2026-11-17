@@ -43,7 +43,7 @@ const FALLBACK_SALES_TEAM = [
 
 export default function Footer() {
   const { data: settings } = useSettings();
-  const logoUrl = settings?.logo_url || withBase("/images/ask-logo.png");
+  const logoUrl = settings?.logo_url || withBase("/images/ask-logo-header.webp"); // 1 kB copy of ask-logo.png (2954 px, 216 kB)
   const tagline = settings?.site_tagline || "Custom Printing & Sublimation Jersey Specialist in Kota Kinabalu, Sabah.";
   const instagramUrl = settings?.social?.instagram || "https://www.instagram.com/askcreativeprinting";
   const facebookUrl = settings?.social?.facebook || "https://www.facebook.com/ASKCreativePrintingServices";
@@ -62,6 +62,7 @@ export default function Footer() {
               <img
                 src={logoUrl}
                 alt="ASK Creative"
+                loading="lazy"
                 className="h-12 w-auto brightness-0 invert opacity-90"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = "none";
@@ -95,9 +96,9 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-[#d7ff00] text-xs font-body font-medium uppercase tracking-[0.08em] mb-5">
+            <h2 className="text-[#d7ff00] text-xs font-body font-medium uppercase tracking-[0.08em] mb-5">
               Quick Links
-            </h4>
+            </h2>
             <ul className="space-y-3">
               {quickLinks.map((link) => (
                 <li key={link.href}>
@@ -114,9 +115,9 @@ export default function Footer() {
 
           {/* Services */}
           <div>
-            <h4 className="text-[#d7ff00] text-xs font-body font-medium uppercase tracking-[0.08em] mb-5">
+            <h2 className="text-[#d7ff00] text-xs font-body font-medium uppercase tracking-[0.08em] mb-5">
               Our Services
-            </h4>
+            </h2>
             <ul className="space-y-3">
               {serviceLinks.map((link) => (
                 <li key={link.href}>
@@ -133,9 +134,9 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="text-[#d7ff00] text-xs font-body font-medium uppercase tracking-[0.08em] mb-5">
+            <h2 className="text-[#d7ff00] text-xs font-body font-medium uppercase tracking-[0.08em] mb-5">
               Contact Us
-            </h4>
+            </h2>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Phone className="w-4 h-4 text-white/50 mt-0.5 shrink-0" />
@@ -162,7 +163,7 @@ export default function Footer() {
               </div>
 
               <div className="pt-2">
-                <p className="text-white/40 text-xs font-body mb-2">WhatsApp Sales Team:</p>
+                <p className="text-white/60 text-xs font-body mb-2">WhatsApp Sales Team:</p>
                 <div className="flex flex-wrap gap-2">
                   {salesTeam.map((member) => (
                     <a
@@ -183,7 +184,7 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="border-t border-white/10 mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-white/40 text-xs font-body">
+          <p className="text-white/60 text-xs font-body">
             &copy; 2025 ASK Creative Sdn Bhd. All rights reserved.
           </p>
           <nav aria-label="Legal" className="flex flex-wrap justify-center gap-x-5 gap-y-2">
@@ -191,7 +192,7 @@ export default function Footer() {
               <Link
                 key={link.href}
                 to={link.href}
-                className="text-white/40 text-xs font-body hover:text-white transition-colors"
+                className="text-white/60 text-xs font-body hover:text-white transition-colors"
               >
                 {link.label}
               </Link>
