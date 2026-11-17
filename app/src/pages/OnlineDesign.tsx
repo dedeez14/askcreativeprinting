@@ -1,10 +1,10 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { sameOriginMedia } from "../lib/media";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Shirt,
   Check, ChevronRight,
-  Plus, Minus, Trash2, Send, Maximize2,
+  Plus, Minus, Trash2, Send, Maximize2, Download, LayoutGrid,
 } from "lucide-react";
 
 // The WebGL preview is lazy-loaded inside StudioPreview, which both screens share.
@@ -28,6 +28,8 @@ import { useDesignToolConfig, useDesignSubmission } from "../hooks/useDesignSubm
 import { designToQuoteRequest } from "../lib/legacyQuote";
 import { uploadOne, UPLOAD_MAX_BYTES, type UploadedFileWithRole } from "../hooks/useFileUpload";
 import { ApiError } from "../lib/api";
+import { useDesignCatalogue, fetchCatalogueItem } from "../hooks/useDesignCatalogue";
+import { catalogueExport, docFromCatalogue, saveFile, type CatalogueItem, type CatalogueRef } from "../editor/catalogue";
 import DesignStage, { type GarmentLook } from "../editor/DesignStage";
 import DesignTools from "../editor/DesignTools";
 import { useEditorKeys } from "../editor/keys";
@@ -111,7 +113,7 @@ const pathsInDoc = (d: DesignDoc): Set<string> => new Set([
   ...Object.values(d.fills).flatMap((f) => (f && f.kind === "image" && f.path ? [f.path] : [])),
 ]);
 
-interface Boot { product: string; category?: string; color?: string; secondary?: string; doc: DesignDoc }
+interface Boot { product: string; category?: string; color?: string; secondary?: string; catalogue?: CatalogueRef | null; doc: DesignDoc }
 
 /** The design the visitor left on this device (read once, when the page opens). */
 function readBoot(): Boot | null {
@@ -200,6 +202,17 @@ export default function OnlineDesign() {
 
   // Step 3 — artwork + placements
   const [artwork, setArtwork] = useState<UploadedFileWithRole[]>(() => (boot?.doc.assets ?? []).map((a) => ({ ...a, role: "artwork" })));
+
+  // ── Design Catalogue (client, 17-Nov-2026: "di online design bisa ditambahkan design catalog dari ask dan bisa di
+  // modifikasi sesuai user berdasarkan catalogue tersebut"). The ASK ready design the customer started from travels
+  // with the enquiry (catalogue_item_id): the ERP makes it a ready design — no design fee, revisions free.
+  // ?catalogue=1 is ASK's own catalogue mode: "Export for catalogue" saves the design file + preview for the ERP.
+  const [catalogueRef, setCatalogueRef] = useState<CatalogueRef | null>(boot?.catalogue ?? null);
+  const [loadingCatalogue, setLoadingCatalogue] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const catalogueMode = searchParams.get("catalogue") === "1";
+  const catalogue = useDesignCatalogue(step === 1 ? selectedProduct : null);
   const [placements, setPlacements] = useState<DesignSubmissionPlacement[]>([]);
 
   // ── The design editor (user, 11-Nov-2026: "gambar bisa di geser geser dibajunya, dan juga bisa tambah
@@ -301,6 +314,7 @@ export default function OnlineDesign() {
       const next = saved ?? emptyDoc(fullPrintByDefault(name) ? "full" : "simple");
       if (next.mode === "full" && !fullPrintAllowed(name)) next.mode = "simple";
       reset(next);
+      setCatalogueRef(null);
       if (saved?.assets.length) {
         setArtwork((list) => [...list, ...saved.assets.filter((a) => !list.some((f) => f.path === a.path)).map((a) => ({ ...a, role: "artwork" as const }))]);
       }
@@ -325,17 +339,54 @@ export default function OnlineDesign() {
       const used = pathsInDoc(doc);
       saveDoc(selectedProduct, isEmptyDoc(doc) ? null : { ...doc, assets: artwork.filter((f) => used.has(f.path)).map(descriptor) });
       try {
-        localStorage.setItem(LAST_KEY, JSON.stringify({ product: selectedProduct, category: activeCategory, color, secondary: secondaryColor }));
+        localStorage.setItem(LAST_KEY, JSON.stringify({ product: selectedProduct, category: activeCategory, color, secondary: secondaryColor, catalogue: catalogueRef }));
       } catch { /* storage unavailable */ }
     }, 300);
     return () => clearTimeout(t);
-  }, [doc, selectedProduct, artwork, activeCategory, color, secondaryColor]);
+  }, [doc, selectedProduct, artwork, activeCategory, color, secondaryColor, catalogueRef]);
 
   const startOver = () => {
     if (!isEmptyDoc(doc) && !window.confirm("Start over? Everything on the garment will be removed.")) return;
     reset(emptyDoc(selectedProduct && fullPrintByDefault(selectedProduct) ? "full" : "simple"));
     setSelectedId(null);
+    setCatalogueRef(null);
     if (selectedProduct) saveDoc(selectedProduct, null);
+  };
+
+  /**
+   * "Start from a catalogue design": the item's design replaces the one on the garment, with its garment colours and
+   * cut where the ERP's own lists allow them (the ERP refuses a colour outside its palette), then the design step
+   * opens — the customer changes colours, text, names and logo as usual.
+   */
+  const startFromCatalogue = async (item: CatalogueItem) => {
+    if (loadingCatalogue !== null) return;
+    if (!isEmptyDoc(doc) && !window.confirm(`Start from "${item.name}"? The design now on your garment will be replaced.`)) return;
+    setLoadingCatalogue(item.id);
+    try {
+      const full = item.design ? item : await fetchCatalogueItem(item.id);
+      if (!full.design?.doc) throw new Error("no design");
+      const next = docFromCatalogue(full.design);
+      if (next.mode === "full" && selectedProduct && !fullPrintAllowed(selectedProduct)) next.mode = "simple";
+      reset(next);
+      setSelectedId(null);
+      const palette = options?.colors ?? [];
+      const colourOk = (v?: string): v is string => !!v && (palette.length > 0 ? palette.includes(v) : /^#[0-9a-f]{6}$/i.test(v));
+      const { colors = {}, collar: c, sleeve: sl, fabric: f } = full.design;
+      if (colourOk(colors.main)) setColor(colors.main);
+      if (colourOk(colors.secondary)) setSecondaryColor(colors.secondary);
+      if (c && options?.collars.includes(c)) setCollar(c);
+      if (sl && options?.sleeves.includes(sl)) setSleeve(sl);
+      if (f && options?.fabrics.includes(f)) setFabric(f);
+      setCatalogueRef({ id: full.id, name: full.name });
+      toast.success(`Started from "${full.name}" — change the colours, text, names and logo as you like.`);
+      goStep(2);
+    } catch (err) {
+      toast.error(err instanceof ApiError && err.status === 404
+        ? "This catalogue design is no longer available."
+        : "Could not open this catalogue design. Please try again.");
+    } finally {
+      setLoadingCatalogue(null);
+    }
   };
 
   useEditorKeys(step === 2 && (isDesktop || editorOpen), {
@@ -558,6 +609,8 @@ export default function OnlineDesign() {
         ? artwork.map((f) => ({ path: f.path, original_name: f.original_name }))
         : undefined,
 
+      catalogue_item_id: catalogueRef?.id,
+
       event_date: eventDate || undefined,
       delivery_date: deliveryDate || undefined,
       priority,
@@ -665,6 +718,30 @@ export default function OnlineDesign() {
         onSuccess: (res) => onDone((res as { enquiry_no?: string })?.enquiry_no, res as EnquiryWhatsAppResponse),
         onError,
       });
+    }
+  };
+
+  /**
+   * Catalogue mode (?catalogue=1, ASK staff): save this design as the ERP's catalogue file (pictures keep their upload
+   * path, which the ERP copies into public storage) and a preview PNG of the designed side, for Website → Design
+   * Catalogue → Add design.
+   */
+  const exportForCatalogue = async () => {
+    if (!selectedProduct || isEmptyDoc(doc)) { toast.error("Design something on the garment first."); return; }
+    setExporting(true);
+    try {
+      const file = catalogueExport(doc, {
+        product: selectedProduct, main: colorValue, secondary: secondaryColor,
+        collar: wearable ? collarValue : undefined, sleeve: wearable ? sleeveValue : undefined, fabric: fabricValue,
+      });
+      const slug = `${selectedProduct}-${isoDate(new Date())}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      saveFile(new Blob([JSON.stringify(file, null, 2)], { type: "application/json" }), `${slug}.json`);
+      const png = await renderSidePng(look, doc, sidesWithDesign(doc, selectedProduct)[0] ?? "front");
+      if (png) saveFile(png.blob, `${slug}.png`);
+      else toast.warning("The preview picture could not be drawn — upload a screenshot as the preview instead.");
+      toast.success("Exported. In the ERP: Website → Design Catalogue → Add design, and upload both files.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -776,6 +853,15 @@ export default function OnlineDesign() {
           </dd>
         </div>
       )}
+      {catalogueRef && (
+        <div className="flex justify-between gap-3">
+          <dt className="text-forest-900/55">Catalogue</dt>
+          <dd className="text-forest-900 text-right">
+            {catalogueRef.name}
+            <span className="block text-xs text-forest-900/60">Ready design — no design fee</span>
+          </dd>
+        </div>
+      )}
       {(namesetRequired || namedCount > 0) && (
         <div className="flex justify-between gap-3">
           <dt className="text-forest-900/55">Names &amp; numbers</dt>
@@ -873,6 +959,46 @@ export default function OnlineDesign() {
                     </p>
                   )}
                 </div>
+
+                {/* Design Catalogue — ASK's ready designs for the chosen product; picking one opens the design step
+                    with it on the garment, to be customised (no design fee, revisions free). */}
+                {selectedProduct && (catalogue.data?.length ?? 0) > 0 && (
+                  <section id="catalogue" className="mt-8" aria-labelledby="catalogue-title">
+                    <h3 id="catalogue-title" className="flex items-center gap-2 font-display text-lg md:text-xl text-forest-900 uppercase">
+                      <LayoutGrid className="w-5 h-5" /> Start from a catalogue design
+                    </h3>
+                    <p className="text-sm font-body text-forest-900/60 mt-1 mb-4">
+                      Ready designs by ASK Creative for the {selectedProduct}. Pick one, then change the colours, text,
+                      names and logo. No design fee, and revisions are free. Or tap Start designing for a blank garment.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {catalogue.data!.map((item) => {
+                        const on = catalogueRef?.id === item.id;
+                        return (
+                          <button key={item.id} type="button" onClick={() => void startFromCatalogue(item)}
+                            disabled={loadingCatalogue !== null} aria-pressed={on}
+                            className={`relative flex flex-col text-left rounded-lg border-2 overflow-hidden transition-all disabled:cursor-wait ${on ? "border-[#0d1f16] bg-[#d7ff00]/15" : "border-forest-900/10 hover:border-forest-900/30"}`}>
+                            {on && <span className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-[#0d1f16] flex items-center justify-center"><Check className="w-3.5 h-3.5 text-[#d7ff00]" /></span>}
+                            <span className="block aspect-square bg-[#F0F4F1]">
+                              {item.preview_url
+                                ? <img src={item.preview_url} alt="" loading="lazy" className="w-full h-full object-contain" />
+                                : <ProductGlyph product={selectedProduct} className="w-full h-full p-8 text-forest-900/30" />}
+                            </span>
+                            <span className="block px-3 py-2">
+                              <span className="block text-sm font-body text-forest-900 leading-snug">{item.name}</span>
+                              {item.category && <span className="block text-xs font-body text-forest-900/55">{item.category}</span>}
+                            </span>
+                            {loadingCatalogue === item.id && (
+                              <span className="absolute inset-0 flex items-center justify-center bg-white/60">
+                                <span className="w-8 h-8 border-4 border-[#0d1f16] border-t-transparent rounded-full animate-spin" />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
               </div>
 
               {/* The model, right here on the first screen — picking a product should show you the
@@ -951,6 +1077,29 @@ export default function OnlineDesign() {
                 </div>
 
                 <div className="space-y-10 min-w-0">
+                  {(catalogueRef || catalogueMode) && (
+                    <div className="space-y-3">
+                      {catalogueRef && (
+                        <p className="rounded-lg border border-[#0d1f16]/15 bg-[#d7ff00]/15 px-4 py-3 text-sm font-body text-forest-900">
+                          <strong className="font-medium">Catalogue design: {catalogueRef.name}.</strong>{" "}
+                          Change anything you like. A ready design has no design fee, and revisions are free.
+                        </p>
+                      )}
+                      {catalogueMode && (
+                        <div className="rounded-lg border border-dashed border-forest-900/30 px-4 py-3">
+                          <p className="text-sm font-body font-medium text-forest-900">Catalogue mode — ASK Creative staff</p>
+                          <p className="text-xs font-body text-forest-900/60 mt-1 mb-3">
+                            Saves this design as a catalogue file (.json) and a preview (.png). Upload both in the ERP:
+                            Website → Design Catalogue → Add design. Upload the pictures here first, through this studio.
+                          </p>
+                          <button type="button" onClick={() => void exportForCatalogue()} disabled={exporting}
+                            className="min-h-11 inline-flex items-center gap-2 rounded-md bg-[#0d1f16] px-4 text-sm font-body font-medium text-[#d7ff00] disabled:opacity-60">
+                            <Download className="w-4 h-4" /> {exporting ? "Exporting…" : "Export for catalogue"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {/* Artwork first: it is what the customer came with, and what the preview is for
                       (on the same screen as the colours — user, 31-Oct: "step customize dan upload
                       design harusnya jadi satu"). */}

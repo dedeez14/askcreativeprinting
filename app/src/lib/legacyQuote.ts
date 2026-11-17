@@ -100,6 +100,7 @@ export function designToQuoteRequest(payload: DesignSubmissionPayload): QuoteReq
       design: compact({
         design: payload.design,
         editor: payload.editor,
+        catalogue_item_id: payload.catalogue_item_id,
         previews: payload.previews?.map(({ side, path, original_name }) => ({ side, path, original_name })),
         placements: payload.placements,
         nameset: payload.nameset,
