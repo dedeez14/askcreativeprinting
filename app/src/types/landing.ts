@@ -374,6 +374,20 @@ export interface EnquiryResponse {
   tracking_url?: string | null;
   tracking_token?: string | null;
   created_at: string;
+  /** 17-Nov-2026: what happened to the confirmation e-mail — promise it only when email_promised. */
+  acknowledgement?: EnquiryAcknowledgement;
+}
+
+/**
+ * The confirmation e-mail of an enquiry, as the ERP reports it in the submit reply.
+ *   status          sent | queued | failed (the mail server refused it) | skipped (no address)
+ *   email_promised  true only when it was sent, or is queued while the mail server is accepting mail
+ *   retry_queued    the ERP will still try again by itself
+ */
+export interface EnquiryAcknowledgement {
+  status: 'sent' | 'queued' | 'failed' | 'skipped';
+  email_promised: boolean;
+  retry_queued: boolean;
 }
 
 // ─────────── Stage 4 — Online Design Tool (doc 07, 06 B5) ───────────
