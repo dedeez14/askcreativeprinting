@@ -9,6 +9,7 @@ import {
 
 // The WebGL preview is lazy-loaded inside StudioPreview, which both screens share.
 import { toast } from "sonner";
+import { submitErrorMessage } from "../lib/submitError";
 import SEOHead from "../components/SEOHead";
 import FileUploadBox from "../components/FileUploadBox";
 import PriceEstimateBox from "../components/PriceEstimateBox";
@@ -569,13 +570,7 @@ export default function OnlineDesign() {
     };
   };
 
-  const onError = (err: unknown) => {
-    const status = (err as { status?: number })?.status;
-    const message = (err as { message?: string })?.message;
-    if (status === 429) toast.error("Too many requests. Please try again in a moment.");
-    else if (status === 422) toast.error(message ?? "Please check your details and try again.");
-    else toast.error("Something went wrong on our side. Please try again.");
-  };
+  const onError = (err: unknown) => toast.error(submitErrorMessage(err));
 
   const onDone = (no?: string, res?: EnquiryWhatsAppResponse | null) => {
     track.markSubmitted();
