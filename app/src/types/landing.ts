@@ -303,6 +303,12 @@ export interface EnquiryPayload {
   email: string;
   phone: string;
   company_name?: string;
+  // The three lines of the sales team's "Details Quotation" chat form — optional (17-Nov-2026)
+  attn?: string;
+  ic_tin_no?: string;
+  trading_licence_no?: string;
+  // The ERP WhatsApp chat this form was sent from (?chat= of the link, lib/chatRef)
+  chat_ref?: string;
 
   // Product
   product_id?: number;              // a catalogue row, when the enquiry starts on a product page
