@@ -22,10 +22,11 @@ import { ENQUIRY_V2 } from "../lib/features";
 import { submitErrorMessage } from "../lib/submitError";
 import { attributionFields } from "../lib/attribution";
 import { captureChatRef } from "../lib/chatRef";
-import { ADULT_SIZES, KIDS_SIZES, cleanSizes, sizeLabel, sumSizes, type SizeMatrix } from "../lib/sizes";
+import { ADULT_SIZES, KIDS_SIZES, breakdownSizes, cleanSizes, namesetSizeConflicts, sizeLabel, sizeOptionLabel, sumSizes, type SizeMatrix } from "../lib/sizes";
 import { isoDate } from "../lib/format";
 import type {
   DeliveryMethod,
+  EnquiryAcknowledgement,
   EnquiryNamesetEntry,
   EnquiryPayload,
   EnquiryPriority,
@@ -208,6 +209,12 @@ export default function Quotation() {
     [category],
   );
   const matrixTotal = useMemo(() => sumSizes(sizes), [sizes]);
+  // The name list picks its sizes from the breakdown and may not contradict it (T3, lib/sizes).
+  const namesetSizeOptions = useMemo(() => breakdownSizes(sizes), [sizes]);
+  const namesetConflicts = useMemo(
+    () => (namesetOpen ? namesetSizeConflicts(nameset, sizes) : []),
+    [namesetOpen, nameset, sizes],
+  );
 
   const onCategoryChange = (value: string) => {
     setCategory(value);
@@ -244,6 +251,11 @@ export default function Quotation() {
     const total = matrixTotal > 0 ? matrixTotal : Number.isFinite(typedTotal) && typedTotal > 0 ? typedTotal : 0;
     if (total <= 0) {
       toast.error("Please enter the quantity, or fill in the size breakdown.");
+      return null;
+    }
+
+    if (namesetConflicts.length > 0) {
+      toast.error(namesetConflicts[0]);
       return null;
     }
 
@@ -331,6 +343,9 @@ export default function Quotation() {
       });
     }
   };
+
+  // What the ERP says about the confirmation e-mail (T1): it is promised only when it was sent or queued.
+  const ack = (result as { acknowledgement?: EnquiryAcknowledgement } | null)?.acknowledgement;
 
   return (
     <>
@@ -638,7 +653,16 @@ export default function Quotation() {
                     <input
                       type="checkbox"
                       checked={namesetOpen}
-                      onChange={(e) => setNamesetOpen(e.target.checked)}
+                      onChange={(e) => {
+                        const open = e.target.checked;
+                        setNamesetOpen(open);
+                        // Typing the list means names and numbers are needed: fill the design question when it
+                        // is still "Not required". A choice the customer made (names only / numbers only) stays,
+                        // and unticking never clears anything.
+                        if (open) {
+                          setDesign((d) => (d.name_number_required === "" ? { ...d, name_number_required: "NAMES_AND_NUMBERS" } : d));
+                        }
+                      }}
                       className="w-5 h-5 shrink-0 accent-teal-500"
                     />
                     <span className="text-sm font-body text-forest-900">
@@ -651,7 +675,22 @@ export default function Quotation() {
                         <div key={i} className="grid grid-cols-2 sm:grid-cols-[1.4fr_0.6fr_0.6fr_1.4fr_auto] gap-2 rounded-lg sm:rounded-none border sm:border-0 border-forest-900/10 p-2 sm:p-0">
                           <input className={FIELD} value={row.name ?? ""} onChange={(e) => setNamesetField(i, "name", e.target.value)} placeholder="Name" aria-label={`Name, row ${i + 1}`} />
                           <input className={FIELD} value={row.number ?? ""} onChange={(e) => setNamesetField(i, "number", e.target.value)} placeholder="No." aria-label={`Number, row ${i + 1}`} />
-                          <input className={FIELD} value={row.size ?? ""} onChange={(e) => setNamesetField(i, "size", e.target.value)} placeholder="Size" aria-label={`Size, row ${i + 1}`} />
+                          <select
+                            className={FIELD}
+                            value={row.size ?? ""}
+                            onChange={(e) => setNamesetField(i, "size", e.target.value)}
+                            disabled={namesetSizeOptions.length === 0 && !row.size}
+                            aria-label={`Size, row ${i + 1}`}
+                          >
+                            <option value="">Size</option>
+                            {namesetSizeOptions.map((size) => (
+                              <option key={size} value={size}>{sizeOptionLabel(size)}</option>
+                            ))}
+                            {/* a size taken out of the breakdown after it was picked stays visible, flagged below */}
+                            {row.size && !namesetSizeOptions.includes(row.size) && (
+                              <option value={row.size}>{sizeOptionLabel(row.size)} (not in breakdown)</option>
+                            )}
+                          </select>
                           <input className={FIELD} value={row.remark ?? ""} onChange={(e) => setNamesetField(i, "remark", e.target.value)} placeholder="Remark" aria-label={`Remark, row ${i + 1}`} />
                           <button
                             type="button"
@@ -670,6 +709,23 @@ export default function Quotation() {
                       >
                         <Plus className="w-4 h-4" /> Add another row
                       </button>
+                      {namesetSizeOptions.length === 0 ? (
+                        <p className="text-forest-900/50 text-xs font-body">
+                          Fill in the size breakdown above to choose a size for each name.
+                        </p>
+                      ) : (
+                        <p className="text-forest-900/50 text-xs font-body">
+                          Each size comes from your size breakdown. Pieces without a name are fine.
+                        </p>
+                      )}
+                      {namesetConflicts.length > 0 && (
+                        <div role="alert" className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm font-body text-red-800">
+                          {namesetConflicts.map((m) => (
+                            <p key={m}>{m}</p>
+                          ))}
+                          <p className="mt-1 text-red-800/80">Change a size in the list, or the quantity in the size breakdown.</p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-forest-900/50 text-sm font-body">
@@ -802,8 +858,8 @@ export default function Quotation() {
                 }}
               />
               <p className="text-forest-900/70 text-base font-body max-w-[480px] mx-auto mb-8">
-                Thank you! Our sales team will review your request and get back to you within 24 hours.
-                A confirmation email is on its way to you.
+                Thank you! Our sales team will review your request and get back to you within 24 hours.{" "}
+                {ackMessage(ack, email.trim(), Boolean(enquiryNo))}
               </p>
               <Link
                 to="/"
@@ -817,4 +873,25 @@ export default function Quotation() {
       </section>
     </>
   );
+}
+
+/**
+ * The line about the confirmation e-mail on the success screen (17-Nov-2026, verification T1). The ERP
+ * reports whether it was sent, is queued, or failed; an e-mail is promised only when sent or queued while
+ * the mail server accepts mail. Otherwise the enquiry number is the customer's proof, and nothing is promised.
+ */
+function ackMessage(ack: EnquiryAcknowledgement | undefined, email: string, hasNumber: boolean): string {
+  const proof = hasNumber
+    ? "Please keep your enquiry number above — it is your proof that we received your request."
+    : "Your request has reached our sales team.";
+  if (ack?.email_promised) {
+    const to = email ? ` to ${email}` : "";
+    return ack.status === "sent"
+      ? `A confirmation e-mail has been sent${to}.`
+      : `A confirmation e-mail is being sent${to}. ${proof}`;
+  }
+  if (ack?.status === "failed") {
+    return `We could not send you a confirmation e-mail right now. ${proof}`;
+  }
+  return proof;
 }
