@@ -19,6 +19,7 @@ import { useFormTracking } from "../hooks/useFormTracking";
 import { useSettings } from "../hooks/useSettings";
 import { toFileRef, type UploadedFileWithRole } from "../hooks/useFileUpload";
 import { ENQUIRY_V2 } from "../lib/features";
+import { submitErrorMessage } from "../lib/submitError";
 import { attributionFields } from "../lib/attribution";
 import { ADULT_SIZES, KIDS_SIZES, cleanSizes, sizeLabel, sumSizes, type SizeMatrix } from "../lib/sizes";
 import { isoDate } from "../lib/format";
@@ -130,6 +131,9 @@ export default function Quotation() {
   const enquiry = useEnquiry();
   const quoteRequest = useQuoteRequest();
   const pending = enquiry.isPending || quoteRequest.isPending;
+  // Why the last send failed, shown beside the send button until the next try — a toast alone
+  // disappears while the visitor is still looking at the bottom of a long form.
+  const [sendError, setSendError] = useState("");
 
   // Customer
   const [name, setName] = useState("");
@@ -282,11 +286,9 @@ export default function Quotation() {
   };
 
   const onError = (err: unknown) => {
-    const status = (err as { status?: number })?.status;
-    const message = (err as { message?: string })?.message;
-    if (status === 429) toast.error("Too many requests. Please try again in a moment.");
-    else if (status === 422) toast.error(message ?? "Please check your details and try again.");
-    else toast.error("Something went wrong on our side. Please try again.");
+    const message = submitErrorMessage(err);
+    setSendError(message);
+    toast.error(message);
   };
 
   const onDone = (no?: string, res?: EnquiryWhatsAppResponse | null) => {
@@ -299,6 +301,7 @@ export default function Quotation() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSendError("");
     const payload = buildPayload();
     if (!payload) return;
 
@@ -703,6 +706,14 @@ export default function Quotation() {
                   <label className={LABEL} htmlFor="q-notes">Anything else we should know?</label>
                   <textarea id="q-notes" rows={4} className={`${FIELD} resize-none`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional notes or requirements…" />
                 </div>
+
+                {sendError && (
+                  <div role="alert" className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm font-body text-red-800">
+                    <p className="font-medium">Your request was not sent.</p>
+                    <p className="mt-1">{sendError}</p>
+                    <p className="mt-1 text-red-800/80">Everything you typed is still on this page.</p>
+                  </div>
+                )}
 
                 {/* The send button rides along the foot of the screen while the form is in view, with
                     what has been asked for so far — no scrolling back down to find it. */}
