@@ -464,6 +464,11 @@ export interface DesignSubmissionPayload {
    */
   editor?: Record<string, unknown>;
   previews?: Array<{ side: 'front' | 'back'; path: string; original_name?: string; url?: string }>;
+  /**
+   * The ASK Design Catalogue item the customer started from (GET /design-catalogue). The ERP then treats the job as a
+   * ready design (no design fee, revisions free); an id it no longer knows is simply dropped.
+   */
+  catalogue_item_id?: number;
 
   // Step 4 — deadline + delivery
   event_date?: string;
